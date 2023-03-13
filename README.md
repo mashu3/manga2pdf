@@ -34,21 +34,31 @@ The program can be executed from the command line with the following options:
 By default, the page layout is set to `TwoPageRight` and the reading direction to `R2L`, which are suitable for Japanese manga.
 
 **Note**
-- Any images in formats other than `.jpg` or `.jpeg` will be converted to `.jpg` format and compressed during the conversion process.
+- Any images in formats other than `jpg` or `jpeg` will be converted to `jpg` format and compressed during the conversion process.
 
 There is a possibility that the script may not be able to handle files in unexpected formats correctly, which may result in errors or unexpected output.
 
 ## Installation
-### To install the package by cloning the Git repository, follow these steps:
+### Installing from PyPI
+To install the latest version of the package from PyPI, run the following command:
+```
+$ pip install manga2pdf
+```
+### Installing directly from the Git repository
+To install the package directly from the Git repository, run the following command:
+```
+$ pip install git+https://github.com/mashu3/manga2pdf.git
+```
+### Installing by cloning the Git repository
+To install the package by cloning the Git repository, follow these steps:
 ```
 $ git clone https://github.com/mashu3/manga2pdf.git
 $ cd manga2pdf/
 $ pip install .
 ```
-### To install the package directly from the git repository, you can use the following command:
-```
-$ pip install git+https://github.com/mashu3/manga2pdf.git
-```
+**Note**
+- It is recommended to install the package from PyPI, but if you want to try out the latest changes, you can install it from the Git repository.
+
 ## Examples
 - To convert `my_manga.zip` to `my_manga.pdf` using the default settings:
 ```
