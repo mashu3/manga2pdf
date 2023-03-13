@@ -9,6 +9,11 @@ INSTALL_REQUIRES = (
     "rarfile",
     "beautifulsoup4"
 )
+CLASSIFIERS=[
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python :: 3.8'
+]
+
 setup(
     name="manga2pdf",
     version=VERSION,
@@ -22,10 +27,11 @@ setup(
     package_dir={"": "src"},
     py_modules=["manga2pdf"],
     packages = find_packages("src"),
+    classifiers=CLASSIFIERS,
     install_requires=INSTALL_REQUIRES,
     entry_points={
         "console_scripts": [
-            "manga2pdf=mangapdf:main",
+            "manga2pdf=manga2pdf:main",
         ]
     }
 )
