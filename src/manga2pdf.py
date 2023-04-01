@@ -13,6 +13,7 @@ import rarfile
 import zipfile
 import argparse
 import warnings
+import numpy as np
 from PIL import Image
 import concurrent.futures
 from bs4 import BeautifulSoup
@@ -27,7 +28,13 @@ class MangaPdfConverter():
         self.output_path = output_path
         self.pagelayout = pagelayout
         self.direction = direction
-    
+        self.convert_to_grayscale = False
+        self.convert_to_jpeg = False
+    def set_convert_to_jpeg(self, flag):
+        self.convert_to_jpeg = flag
+    def set_convert_to_grayscale(self, flag):
+        self.convert_to_grayscale = flag
+
     # Function to determine w   hether the given file name is an image file or not
     def is_image_file(self, filename):
         return any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp'])
@@ -93,12 +100,54 @@ class MangaPdfConverter():
         return img_files
     
     # Function to convert an image file to JPEG format and save it in a temporary directory
-    def convert_to_jpeg(self, img_file_path, tmp_dir):
+    def to_jpeg(self, img_file_path, tmp_dir):
         img_output_path = os.path.join(tmp_dir, os.path.basename(img_file_path)[:-4] + '.jpg')
         with Image.open(img_file_path) as im:
             im.convert('RGB').save(img_output_path, 'JPEG')
         return img_output_path, img_file_path
     
+    # Function to determine whether an image is a color image or not.
+    def is_color(self, img):
+        # Return False if the image is grayscale.
+        if img.mode == 'L':
+            return False
+        # Get the values of each channel in RGB.
+        img = img.convert('RGB')
+        r_arr = np.array(img)[:, :, 0]/ 255
+        g_arr = np.array(img)[:, :, 1]/ 255
+        b_arr = np.array(img)[:, :, 2]/ 255
+        # Calculate the difference between each RGB channel.
+        diff_rg = np.abs(r_arr - g_arr)
+        diff_gb = np.abs(g_arr - b_arr)
+        diff_rb = np.abs(r_arr - b_arr)
+
+        # Get the location of each pixel where the difference between the RGB channels exceeds the threshold.
+        threshold = 0.5
+        not_gray_indices = np.argwhere(
+            (diff_rg > threshold) | (diff_gb > threshold) | (diff_rb > threshold)
+        )
+        return not_gray_indices.shape[0] != 0
+    
+    # Function to convert PNG images to grayscale if the input image is not already grayscale.
+    def to_grayscale(self, img_file_path, tmp_dir):
+        img_output_path = os.path.join(tmp_dir, os.path.basename(img_file_path)[:-4] + '.png')
+        with Image.open(img_file_path) as img:
+            if not self.is_color(img): # If the PNG image is in black and white, perform grayscale conversion.
+                img = img.convert('L')
+            else:
+                img = img.convert('RGB')
+            img.save(img_output_path, 'PNG')
+        return img_output_path, img_file_path
+    
+    # Function to remove alpha channel from PNG images if the input image contains an alpha channel.
+    def remove_alpha_channel(self, img_file_path, tmp_dir):
+        img_output_path = os.path.join(tmp_dir, os.path.basename(img_file_path)[:-4] + '.png')
+        with Image.open(img_file_path) as img:
+            if img.mode in ['RGBA', 'LA'] or (img.mode == 'P' and 'transparency' in img.info):
+                img = img.convert('RGB')
+            img.save(img_output_path, 'PNG')
+        return img_output_path, img_file_path
+        
     # Function to extract the contents of an EPUB file
     def extract_epub_contents(self, epub):
         contents = epub.namelist()
@@ -197,8 +246,15 @@ class MangaPdfConverter():
                             with open(img_file_path, 'rb') as f:
                                 page_items.append((f.read(), img_file_path))
                         else:
-                            future = executor.submit(self.convert_to_jpeg, img_file_path, tmp_dir)
-                            futures.append(future)
+                            if self.convert_to_jpeg:
+                                future = executor.submit(self.to_jpeg, img_file_path, tmp_dir)
+                                futures.append(future)
+                            elif self.convert_to_grayscale:
+                                future = executor.submit(self.to_grayscale, img_file_path, tmp_dir)
+                                futures.append(future)
+                            else:
+                                future = executor.submit(self.remove_alpha_channel, img_file_path, tmp_dir)
+                                futures.append(future)
                     for future in concurrent.futures.as_completed(futures):
                         img_output_path, img_file_path = future.result()
                         with open(img_output_path, 'rb') as f:
@@ -272,6 +328,9 @@ TwoColumnRight -> Separate Cover, Scrolling Spread View''')
                         help='''\
 L2R -> Left Binding
 (default)R2L -> Right Binding''')
+    parser.add_argument('-j', '--jpeg', action='store_true', help='Convert images to JPEG')
+    parser.add_argument('-g', '--grayscale', action='store_true', help='Convert images to grayscale')
+
 
     args = parser.parse_args()
     if args.input_path is None:
@@ -287,8 +346,15 @@ L2R -> Left Binding
         if not args.output_path.endswith('.pdf'):
             print('Error: The output file must be an PDF file.')
             sys.exit(1)
+    if args.grayscale and args.jpeg:
+        print('Error: Cannot specify both --grayscale and --jpeg options.')
+        sys.exit(1)
     
     converter = MangaPdfConverter(args.input_path, args.output_path, args.pagelayout, args.direction)
+    if args.jpeg:
+        converter.set_convert_to_jpeg(True)
+    elif args.grayscale:
+        converter.set_convert_to_grayscale(True)
     converter.convert()
 
 if __name__ == '__main__':

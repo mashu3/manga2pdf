@@ -33,8 +33,10 @@ The program can be executed from the command line with the following options:
 
 By default, the page layout is set to `TwoPageRight` and the reading direction to `R2L`, which are suitable for Japanese manga.
 
+The `-j` or `--jpeg` option converts images to JPEG format before including them in the output PDF file, resulting in a smaller file size. Similarly, the `-g` or `--grayscale` option can be used to convert images to grayscale and reduce the size of the resulting PDF file. The program outputs the converted image in the specified format and compresses the PDF file accordingly.
+
 **Note**
-- Any images in formats other than `jpg` or `jpeg` will be converted to `jpg` format and compressed during the conversion process.
+- When the original image is already in the JPEG format, using the `-j` or `--jpeg` option will have no effect. Similarly, if the original image is already grayscale, using the `-g` or `--grayscale` option will have no effect. Also, if none of these options are used, the resulting PDF file will not be compressed.
 
 There is a possibility that the script may not be able to handle files in unexpected formats correctly, which may result in errors or unexpected output.
 

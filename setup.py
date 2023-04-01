@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 
 INSTALL_REQUIRES = (
     "img2pdf",
@@ -11,7 +11,9 @@ INSTALL_REQUIRES = (
 )
 CLASSIFIERS=[
     'License :: OSI Approved :: MIT License',
-    'Programming Language :: Python :: 3.8'
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11'
 ]
 
 setup(
