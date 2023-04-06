@@ -162,9 +162,9 @@ class MangaPdfConverter():
             content_opf = opf.read().decode()
             opf_soup = BeautifulSoup(content_opf, 'xml')
             for item in opf_soup.find_all('item', {'media-type': 'image/jpeg'}):
-                page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href')))
+                page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href').replace('/', os.sep)).replace(os.sep, '/'))
             for item in opf_soup.find_all('item', {'media-type': 'image/png'}):
-                page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href')))
+                page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href').replace('/', os.sep)).replace(os.sep, '/'))
         page_items = []
         for page_name in page_names:
             page_items.append(epub.open(page_name))
