@@ -198,7 +198,7 @@ class MangaPdfConverter():
                     except KeyError:
                         img_link = img_tag['src']
                     image_href = os.path.abspath(os.path.join(os.path.dirname(nav_text), img_link))
-                    image_href = os.path.relpath(image_href, os.getcwd())
+                    image_href = os.path.relpath(image_href, os.getcwd()).replace(os.sep, '/')
                     index_number = page_names.index(image_href)
                     page_index.append([nav_label, index_number])
             else:
@@ -292,12 +292,14 @@ class MangaPdfConverter():
             if self.output_path is None:
                 if os.path.isdir(self.input_path):
                     pdf_filename = os.path.basename(self.input_path) + '.pdf'
-                    output_path = os.path.join(self.input_path, pdf_filename)
+                    output_path = os.path.join(self.input_path, pdf_filename).replace(os.sep, '/')
                 else:
                     pdf_filename, _ = os.path.splitext(self.input_path)
                     output_path = f"{pdf_filename}.pdf"
             else:
                 output_path = self.output_path
+            if os.path.exists(output_path):
+                os.remove(output_path)
             pdf.save(output_path, linearize=True)
         return None
 
