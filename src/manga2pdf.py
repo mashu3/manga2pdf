@@ -332,32 +332,36 @@ L2R -> Left Binding
 (default)R2L -> Right Binding''')
     parser.add_argument('-j', '--jpeg', action='store_true', help='Convert images to JPEG')
     parser.add_argument('-g', '--grayscale', action='store_true', help='Convert images to grayscale')
-
+    parser.add_argument('-gui', action='store_true', help='Launch GUI')
 
     args = parser.parse_args()
-    if args.input_path is None:
-        parser.print_usage()
-        parser.print_help()
-        sys.exit(1)
-    if not os.path.isdir(args.input_path):
-        ext = os.path.splitext(args.input_path)[1].lower()
-        if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.epub']:
-            print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, and .epub.')
+    if args.gui:
+        import manga2pdf_gui
+        manga2pdf_gui.launch_gui()
+    else:
+        if args.input_path is None:
+            parser.print_usage()
+            parser.print_help()
             sys.exit(1)
-    if args.output_path is not None:
-        if not args.output_path.endswith('.pdf'):
-            print('Error: The output file must be an PDF file.')
+        if not os.path.isdir(args.input_path):
+            ext = os.path.splitext(args.input_path)[1].lower()
+            if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.epub']:
+                print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, and .epub.')
+                sys.exit(1)
+        if args.output_path is not None:
+            if not args.output_path.endswith('.pdf'):
+                print('Error: The output file must be an PDF file.')
+                sys.exit(1)
+        if args.grayscale and args.jpeg:
+            print('Error: Cannot specify both --grayscale and --jpeg options.')
             sys.exit(1)
-    if args.grayscale and args.jpeg:
-        print('Error: Cannot specify both --grayscale and --jpeg options.')
-        sys.exit(1)
-    
-    converter = MangaPdfConverter(args.input_path, args.output_path, args.pagelayout, args.direction)
-    if args.jpeg:
-        converter.set_convert_to_jpeg(True)
-    elif args.grayscale:
-        converter.set_convert_to_grayscale(True)
-    converter.convert()
+        
+        converter = MangaPdfConverter(args.input_path, args.output_path, args.pagelayout, args.direction)
+        if args.jpeg:
+            converter.set_convert_to_jpeg(True)
+        elif args.grayscale:
+            converter.set_convert_to_grayscale(True)
+        converter.convert()
 
 if __name__ == '__main__':
     main()
