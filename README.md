@@ -75,5 +75,13 @@ $ manga2pdf my_manga.epub -o my_manga_spread.pdf
 $ manga2pdf my_comic.epub -o my_comic.pdf -p TwoPageLeft -d L2R
 ```
 
+## GUI
+To launch the graphical user interface:
+```
+$ manga2pdf -gui
+``` 
+The interface supports English and Japanese, and all settings that can be specified via the command line are available.
+The GUI is currently under development and additional features are planned for future updates.
+
 ## Author
 [mashu3](https://github.com/mashu3)
