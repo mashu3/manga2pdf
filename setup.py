@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = "0.0.4"
+VERSION = "0.1.0"
 
 INSTALL_REQUIRES = (
     "img2pdf",
@@ -27,7 +27,7 @@ setup(
     url="https://github.com/mashu3/manga2pdf",
     license='MIT',
     package_dir={"": "src"},
-    py_modules=["manga2pdf"],
+    py_modules=["manga2pdf", "manga2pdf_gui"],
     packages = find_packages("src"),
     classifiers=CLASSIFIERS,
     install_requires=INSTALL_REQUIRES,
