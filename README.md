@@ -20,14 +20,21 @@ This script can take input in the form of `zip`, `cbz`, `rar`, `cbr`, `epub` fil
 The program can be executed from the command line with the following options:
 - The `input_path` argument represents the path to the input file. To execute the Python script correctly, specify the `input_path` argument as the path to the input file containing manga or comic images in any of the supported formats, such as `zip`, `cbz`, `rar`, `cbr`, `epub`, or a directory containing images in formats such as `jpg`, `jpeg`, `png`, `gif`, or `bmp`.
 - The `output_path` argument is the path to the output PDF file. To use the script, simply run the Python script with the path to the input file or directory as the argument. If the `--output` option is not specified, the output file name will be automatically generated based on the name of the input file or directory.
-- The `pagelayout` argument is the page layout of the PDF file. The `pagelayout` parameter can take in the following values:
+- The `pagelayout` parameter can take in the following values:
     - `SinglePage` -> Single page display
     - `OneColumn` -> Enable scrolling
     - `TwoPageLeft` -> Spread view
     - `TwoColumnLeft` -> Spread view with scrolling
     - (default) `TwoPageRight` -> Separate Cover, Spread View
     - `TwoColumnRight` -> Separate Cover, Scrolling Spread View
-- The `direction` argument is the reading direction of the PDF file. The `direction` parameter can take in the following values:
+- The `pagemode` parameter can take in the following values:
+    - (default) `UseNone` -> Neither document outline nor thumbnail images visible
+    - `UseOutlines` -> Document outline visible
+    - `UseThumbs` -> Thumbnail images visible
+    - `FullScreen` -> Full-screen mode
+    - `UseOC` -> Optional content group panel visible
+    - `UseAttachments` -> Attachments panel visible
+- The `direction` parameter can take in the following values:
     - `L2R` -> Left Binding
     - (default) `R2L` -> Right Binding
 
