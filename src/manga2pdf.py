@@ -23,10 +23,11 @@ from bs4 import XMLParsedAsHTMLWarning
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 class MangaPdfConverter():   
-    def __init__(self, input_path: str, output_path: str, pagelayout:str, direction:str):
+    def __init__(self, input_path: str, output_path: str, pagelayout:str, pagemode:str, direction:str):
         self.input_path = input_path
         self.output_path = output_path
         self.pagelayout = pagelayout
+        self.pagemode = pagemode
         self.direction = direction
         self.convert_to_grayscale = False
         self.convert_to_jpeg = False
@@ -283,6 +284,10 @@ class MangaPdfConverter():
                 if not hasattr(pdf.Root, 'PageLayout') \
                 or pdf.Root.PageLayout != '/' + self.pagelayout:
                     pdf.Root.PageLayout = pikepdf.Name('/' + self.pagelayout)
+            if self.pagemode is not None:
+                if not hasattr(pdf.Root, 'PageMode') \
+                or pdf.Root.PageMode != '/' + self.pagemodet:
+                    pdf.Root.PageMode = pikepdf.Name('/' + self.pagemode)
             if self.direction is not None:
                 if not hasattr(pdf.Root, 'ViewerPreferences'):
                     pdf.Root.ViewerPreferences = pikepdf.Dictionary()
@@ -317,7 +322,7 @@ def main():
                         help='''\
 path to the output PDF file. 
 If not specified, the output file name is generated from the input file or directory name.''')
-    parser.add_argument('-p', '--pagelayout', type=str, default='TwoPageRight', 
+    parser.add_argument('-l', '--pagelayout', type=str, default='TwoPageRight', 
                         choices=['SinglePage', 'OneColumn', 'TwoColumnLeft', 'TwoColumnRight', 'TwoPageLeft', 'TwoPageRight'],
                         help='''\
 SinglePage -> Single page display
@@ -326,6 +331,15 @@ TwoPageLeft -> Spread view
 TwoColumnLeft -> Spread view with scrolling
 (default) TwoPageRight -> Separate Cover, Spread View
 TwoColumnRight -> Separate Cover, Scrolling Spread View''')
+    parser.add_argument('-m', '--pagemode', type=str, default='UseNone', 
+                        choices=['UseOutlines', 'UseThumbs', 'FullScreen', 'UseOC', 'UseAttachments'],
+                        help='''\
+(default)UseNone -> Neither document outline nor thumbnail images visible
+UseOutlines -> Document outline visible
+UseThumbs -> Thumbnail images visible
+FullScreen -> Full-screen mode
+UseOC -> Optional content group panel visible
+UseAttachments -> Attachments panel visible''')
     parser.add_argument('-d', '--direction', type=str, default='R2L', choices=['L2R', 'R2L'],
                         help='''\
 L2R -> Left Binding
@@ -356,7 +370,7 @@ L2R -> Left Binding
             print('Error: Cannot specify both --grayscale and --jpeg options.')
             sys.exit(1)
         
-        converter = MangaPdfConverter(args.input_path, args.output_path, args.pagelayout, args.direction)
+        converter = MangaPdfConverter(args.input_path, args.output_path, args.pagelayout, args.pagemode, args.direction)
         if args.jpeg:
             converter.set_convert_to_jpeg(True)
         elif args.grayscale:
