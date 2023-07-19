@@ -152,12 +152,28 @@ class MangaPdfConverter():
     # Function to extract the contents of an EPUB file
     def extract_epub_contents(self, epub):
         contents = epub.namelist()
+        ncx_names = []
+        opf_names = []
         for item in contents:
             extension = item.split('.')[-1].lower()
             if extension == 'ncx':
-                ncx_name = item
+                ncx_names.append(item)
             if extension == 'opf':
-                opf_name = item
+                opf_names.append(item)
+        flag = False
+        for ncx in ncx_names:
+            if 'standard' in ncx:
+                ncx_name = ncx
+                flag = True
+        if not flag:
+            ncx_name = ncx_names[0]
+        flag = False
+        for opf in opf_names:
+            if 'standard' in opf:
+                opf_name = opf
+                flag = True
+        if not flag:
+            opf_name = opf_names[0]
         page_names = []
         with epub.open(opf_name) as opf:
             content_opf = opf.read().decode()
