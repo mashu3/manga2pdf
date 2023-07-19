@@ -270,7 +270,7 @@ class MangaPdfConverterGUI:
 
         # Call MangaPdfConverter with the appropriate arguments
         try:
-            converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), direction=self.direction_var.get())
+            converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), pagemode='UseNone', direction=self.direction_var.get())
 
             # Ask user if they want to convert
             confirm_text = {"en": "Are you sure you want to convert?", "ja": "変換処理を開始しますか？"}
@@ -335,9 +335,6 @@ class MangaPdfConverterGUI:
                 messagebox.showerror("Error", complete_error_text[self.language], parent=self.master)
 
         except Exception as e:
-            # Close process window when done
-            processing_window.destroy()
-
             complete_error_text = {"en": "Conversion failed", "ja": "エラーで変換処理に失敗しました"}
             messagebox.showerror(title="Error", message=f"{complete_error_text[self.language]}\n{str(e)}", parent=self.master)
 
