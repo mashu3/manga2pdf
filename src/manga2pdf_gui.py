@@ -4,6 +4,7 @@
 
 import os
 import sys
+import platform
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
@@ -17,20 +18,23 @@ class MangaPdfConverterGUI:
         master.title("Manga PDF Converter")
         self.master.resizable(0, 0)
         self.processing_window = None
+        self.system = platform.system()
 
         # Create five frames
         path_frame =ttk.Frame(master)
         conversion_frame = ttk.Frame(master)
-        pagelayout_frame = ttk.Frame(master)
         direction_frame = ttk.Frame(master)
+        pagelayout_frame = ttk.Frame(master)
+        pagemode_frame = ttk.Frame(master)
         button_frame = ttk.Frame(master)
 
         # Set grid layout
         path_frame.grid(row=0, column=0, columnspan=3, sticky='we')
         conversion_frame.grid(row=1, column=0, sticky='nswe')
-        pagelayout_frame.grid(row=1, column=1, sticky='nswe')
-        direction_frame.grid(row=1, column=2, sticky='nswe')
-        button_frame.grid(row=2, column=0, columnspan=3, sticky='we')
+        direction_frame.grid(row=2, column=0, sticky='nswe')
+        pagelayout_frame.grid(row=1, column=1, rowspan=2, sticky='nswe')
+        pagemode_frame.grid(row=1, column=2, rowspan=2, sticky='nswe')
+        button_frame.grid(row=3, column=0, columnspan=3, sticky='we')
 
         # Add input path label and entry
         input_frame = ttk.Frame(path_frame)
@@ -44,7 +48,10 @@ class MangaPdfConverterGUI:
         self.input_directory_button_text = {"en": "Select Directory", "ja": "フォルダ選択"}
         self.input_directory_button = ttk.Button(input_frame, text=self.input_directory_button_text[self.language], command=self.browse_input_directory)
         self.input_directory_button.pack(side="right", padx=10, pady=5)
-        self.input_entry = ttk.Entry(path_frame, width=65)
+        if self.system == "Windows":
+            self.input_entry = ttk.Entry(path_frame, width=90)
+        else:
+            self.input_entry = ttk.Entry(path_frame, width=65)
         self.input_entry.grid(row=1, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # Add output path label and entry
@@ -59,13 +66,16 @@ class MangaPdfConverterGUI:
         self.auto_output_button_text = {"en": "Auto", "ja": "自動設定"}
         self.auto_output_button = ttk.Button(output_frame, text=self.auto_output_button_text[self.language], command=self.auto_output_path)
         self.auto_output_button.pack(side="right", padx=10, pady=5)
-        self.output_entry = ttk.Entry(path_frame, width=65)
+        if self.system == "Windows":
+            self.output_entry = ttk.Entry(path_frame, width=90)
+        else:
+            self.output_entry = ttk.Entry(path_frame, width=65)
         self.output_entry.grid(row=3, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # Create a LabelFrame for the conversion options
         self.conversion_label_text = {"en": "Conversion Options:", "ja": "圧縮方式:"}
         self.conversion_labelframe = ttk.LabelFrame(conversion_frame, text=self.conversion_label_text[self.language], padding=5)
-        self.conversion_labelframe.grid(row=0, column=0, rowspan=10, sticky="nsew", padx=5, pady=1)
+        self.conversion_labelframe.grid(row=0, column=0, rowspan=5, sticky="nsew", padx=2, pady=1)
 
         self.conversion_var = tk.StringVar(value="none")
         self.conversion_text = {
@@ -79,12 +89,30 @@ class MangaPdfConverterGUI:
                 self.conversion_labelframe, text=conversion, variable=self.conversion_var, value=self.conversion_value[i]
             )
             self.conversion_radio.append(conversion_radio)
-            conversion_radio.grid(row=i+1, column=0, sticky="nsew", padx=5, pady=1)
+            conversion_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
+
+        # Create a LabelFrame for the direction options
+        self.direction_label_text = {"en": "Direction:", "ja": "綴じ方向:"}
+        self.direction_labelframe = ttk.LabelFrame(direction_frame, text=self.direction_label_text[self.language], padding=5)
+        self.direction_labelframe.grid(row=0, column=0, rowspan=5, sticky="nsew", padx=2, pady=1)
+
+        self.direction_var = tk.StringVar(value="R2L")
+        self.direction_text = {
+            "en": ["L2R", "R2L"],
+            "ja": ["左綴じ", "右綴じ"],
+        }
+        self.direction_value = ["L2R", "R2L"]
+        self.direction_radio = []
+        for i, direction in enumerate(self.direction_text[self.language]):
+            direction_radio = ttk.Radiobutton(
+                self.direction_labelframe, text=direction, variable=self.direction_var, value=self.direction_value[i])
+            self.direction_radio.append(direction_radio)
+            direction_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
         
         # Create a LabelFrame for the page layout options
         self.pagelayout_label_text = {"en": "Page Layout:", "ja": "ページレイアウト:"}
         self.pagelayout_labelframe = ttk.LabelFrame(pagelayout_frame, text=self.pagelayout_label_text[self.language], padding=5)
-        self.pagelayout_labelframe.grid(row=0, column=1, rowspan=10, sticky="nsew", padx=5, pady=1)
+        self.pagelayout_labelframe.grid(row=0, column=0, rowspan=10, sticky="nsew", padx=2, pady=1)
 
         self.pagelayout_var = tk.StringVar(value="TwoPageRight")
         self.pagelayout_text = {
@@ -98,25 +126,26 @@ class MangaPdfConverterGUI:
                 self.pagelayout_labelframe, text=pagelayout, variable=self.pagelayout_var, value=self.pagelayout_value[i]
             )
             self.pagelayout_radio.append(pagelayout_radio)
-            pagelayout_radio.grid(row=i+1, column=1, sticky="nsew", padx=5, pady=1)
+            pagelayout_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
-        # Create a LabelFrame for the direction options
-        self.direction_label_text = {"en": "Direction:", "ja": "綴じ方向:"}
-        self.direction_labelframe = ttk.LabelFrame(direction_frame, text=self.direction_label_text[self.language], padding=5)
-        self.direction_labelframe.grid(row=0, column=2, rowspan=10, sticky="nsew", padx=5, pady=1)
+        # Create a LabelFrame for the page mode options
+        self.pagemode_label_text = {"en": "Page Mode:", "ja": "ページモード:"}
+        self.pagemode_labelframe = ttk.LabelFrame(pagemode_frame, text=self.pagemode_label_text[self.language], padding=5)
+        self.pagemode_labelframe.grid(row=0, column=0, rowspan=10, sticky="nsew", padx=2, pady=1)
 
-        self.direction_var = tk.StringVar(value="R2L")
-        self.direction_text = {
-            "en": ["L2R", "R2L"],
-            "ja": ["左綴じ", "右綴じ"],
+        self.pagemode_var = tk.StringVar(value="UseNone")
+        self.pagemode_text = {
+            "en": ["UseNone", "UseOutlines", "UseThumbs", "FullScreen", "UseOC", "UseAttachments"],
+            "ja": ["デフォルト表示", "アウトラインパネルを表示", "サムネイルパネルを表示", "フルスクリーンモード", "コンテンツパネルを表示", "添付ファイルパネルを表示"],
         }
-        self.direction_value = ["L2R", "R2L"]
-        self.direction_radio = []
-        for i, direction in enumerate(self.direction_text[self.language]):
-            direction_radio = ttk.Radiobutton(
-                self.direction_labelframe, text=direction, variable=self.direction_var, value=self.direction_value[i])
-            self.direction_radio.append(direction_radio)
-            direction_radio.grid(row=i+1, column=2, sticky="nsew", padx=5, pady=1)
+        self.pagemode_value = ["UseNone", "UseOutlines", "UseThumbs", "FullScreen", "UseOC", "UseAttachments"]
+        self.pagemode_radio = []
+        for i, pagemode in enumerate(self.pagemode_text[self.language]):
+            pagemode_radio = ttk.Radiobutton(
+                self.pagemode_labelframe, text=pagemode, variable=self.pagemode_var, value=self.pagemode_value[i]
+            )
+            self.pagemode_radio.append(pagemode_radio)
+            pagemode_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
         # Add language toggle button
         self.language_button_text = {"en": "日本語表示に切替", "ja": "Display in English"}
@@ -164,14 +193,18 @@ class MangaPdfConverterGUI:
         for i, conversion in enumerate(self.conversion_text[self.language]):
             self.conversion_radio[i].configure(text=conversion)
         self.conversion_var.set(self.conversion_var.get())
-        self.pagelayout_labelframe.configure(text=self.pagelayout_label_text[self.language])
-        for i, pagelayout in enumerate(self.pagelayout_text[self.language]):
-            self.pagelayout_radio[i].configure(text=pagelayout)
-        self.pagelayout_var.set(self.pagelayout_var.get())
         self.direction_labelframe.configure(text=self.direction_label_text[self.language])
         for i, direction in enumerate(self.direction_text[self.language]):
             self.direction_radio[i].configure(text=direction)
         self.direction_var.set(self.direction_var.get())
+        self.pagelayout_labelframe.configure(text=self.pagelayout_label_text[self.language])
+        for i, pagelayout in enumerate(self.pagelayout_text[self.language]):
+            self.pagelayout_radio[i].configure(text=pagelayout)
+        self.pagemode_var.set(self.pagemode_var.get())
+        self.pagemode_labelframe.configure(text=self.pagemode_label_text[self.language])
+        for i, pagemode in enumerate(self.pagemode_text[self.language]):
+            self.pagemode_radio[i].configure(text=pagemode)
+        self.pagelayout_var.set(self.pagelayout_var.get())
         self.language_button.configure(text=self.language_button_text[self.language])
         self.convert_button.configure(text=self.convert_button_text[self.language])
         self.quit_button.configure(text=self.quit_button_text[self.language])
@@ -270,7 +303,7 @@ class MangaPdfConverterGUI:
 
         # Call MangaPdfConverter with the appropriate arguments
         try:
-            converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), pagemode='UseNone', direction=self.direction_var.get())
+            converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
 
             # Ask user if they want to convert
             confirm_text = {"en": "Are you sure you want to convert?", "ja": "変換処理を開始しますか？"}
