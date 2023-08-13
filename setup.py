@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
-VERSION = "0.1.4"
+VERSION = "0.2.0"
 
 INSTALL_REQUIRES = (
+    "lxml",
     "numpy",
     "img2pdf",
     "Pillow",
     "pikepdf",
-    "rarfile",
-    "beautifulsoup4"
+    "rarfile"
 )
 CLASSIFIERS=[
     'License :: OSI Approved :: MIT License',

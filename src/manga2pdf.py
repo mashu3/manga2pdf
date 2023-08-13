@@ -15,12 +15,10 @@ import argparse
 import warnings
 import numpy as np
 from PIL import Image
+from lxml import etree
 import concurrent.futures
-from bs4 import BeautifulSoup
-
 warnings.filterwarnings('ignore', category=UserWarning)
-from bs4 import XMLParsedAsHTMLWarning
-warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
+
 
 class MangaPdfConverter():   
     def __init__(self, input_path: str, output_path: str, pagelayout:str, pagemode:str, direction:str):
@@ -176,28 +174,32 @@ class MangaPdfConverter():
             opf_name = opf_names[0]
         page_names = []
         with epub.open(opf_name) as opf:
-            content_opf = opf.read().decode()
-            opf_soup = BeautifulSoup(content_opf, 'xml')
-            for item in opf_soup.find_all('item', {'media-type': 'image/jpeg'}):
+            opf_content = opf.read()
+            opf_tree = etree.fromstring(opf_content)
+            namespace = {'dc': 'http://purl.org/dc/elements/1.1/', 'opf': 'http://www.idpf.org/2007/opf'}
+            manifest = opf_tree.find('opf:manifest', namespaces=namespace)
+            for item in manifest.findall('opf:item[@media-type="image/jpeg"]', namespaces=namespace):
                 page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href').replace('/', os.sep)).replace(os.sep, '/'))
-            for item in opf_soup.find_all('item', {'media-type': 'image/png'}):
+            for item in manifest.findall('opf:item[@media-type="image/png"]', namespaces=namespace):
                 page_names.append(os.path.join(os.path.dirname(opf_name), item.get('href').replace('/', os.sep)).replace(os.sep, '/'))
         page_items = []
         for page_name in page_names:
             page_items.append(epub.open(page_name))
         return page_names, page_items, ncx_name, opf_name
-    
+
     # Function to extract the index of an EPUB file
     def extract_epub_index(self, epub, page_names, ncx_name: str):
         page_index = []
         with epub.open(ncx_name) as ncx_file:
             ncx_content = ncx_file.read()
-        ncx_soup = BeautifulSoup(ncx_content, 'lxml')
-        navpoints = ncx_soup.find_all('navpoint')
+        ncx_tree = etree.fromstring(ncx_content)
+        namespace = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/', 'html': 'http://www.w3.org/1999/xhtml', 'svg':'http://www.w3.org/2000/svg'}
+        navmap = ncx_tree.find('ncx:navMap', namespaces=namespace)
+        navpoints = navmap.findall('ncx:navPoint', namespaces=namespace)
         ncx_path = os.path.dirname(ncx_name) + '/'
         for navpoint in navpoints:
-            nav_label = navpoint.navlabel.text.strip()
-            nav_text = navpoint.content['src']
+            nav_label = navpoint.find('ncx:navLabel/ncx:text', namespaces=namespace).text.strip()
+            nav_text = navpoint.find('ncx:content', namespaces=namespace).get('src')
             if nav_text.startswith(ncx_path):
                 nav_text = nav_text[len(ncx_path):]
             else:
@@ -205,15 +207,12 @@ class MangaPdfConverter():
             if nav_text.endswith('.xhtml'):
                 with epub.open(nav_text) as xhtml_file:
                     xhtml_content = xhtml_file.read()
-                xhtml_soup = BeautifulSoup(xhtml_content, 'html.parser')
-                img_tags = xhtml_soup.find_all('image')
+                xhtml_tree = etree.fromstring(xhtml_content)
+                img_tags = xhtml_tree.findall('.//svg:image', namespaces=namespace)
                 if len(img_tags) == 0:
-                    img_tags = xhtml_soup.find_all('img')
+                    img_tags = img_tags = xhtml_tree.findall('.//svg:img', namespaces=namespace)
                 for img_tag in img_tags:
-                    try:
-                        img_link = img_tag['xlink:href']
-                    except KeyError:
-                        img_link = img_tag['src']
+                    img_link = img_tag.get('{http://www.w3.org/1999/xlink}href', img_tag.get('src'))
                     image_href = os.path.abspath(os.path.join(os.path.dirname(nav_text), img_link))
                     image_href = os.path.relpath(image_href, os.getcwd()).replace(os.sep, '/')
                     index_number = page_names.index(image_href)
@@ -227,21 +226,22 @@ class MangaPdfConverter():
     def extract_epub_metadata(self, epub, opf_name: str):
         with epub.open(opf_name) as opf_file:
             opf_content = opf_file.read()
-        opf_soup = BeautifulSoup(opf_content, 'lxml')
-        metadata = opf_soup.find('metadata')    
+        opf_tree = etree.fromstring(opf_content)
+        namespace = {'dc': 'http://purl.org/dc/elements/1.1/', 'opf': 'http://www.idpf.org/2007/opf'}
+        metadata = opf_tree.find('opf:metadata', namespaces=namespace)    
         epub_metadata = {}
         for key in ['title', 'creator', 'publisher', 'date', 'language']:
-            values = metadata.find_all('dc:'+key)
+            values = metadata.xpath('./dc:' + key, namespaces=namespace)
             if key == 'creator':
                 if values:
-                    epub_metadata[key] = [value for value in values]
+                    epub_metadata[key] = [value.text for value in values]
             else:
                 if values:
                     epub_metadata[key] = values[0].text
                 else:
                     epub_metadata[key] = None
         return epub_metadata
-    
+
     # Function to convert input files to a PDF file
     def convert(self):
         if self.is_epub_file(self.input_path):

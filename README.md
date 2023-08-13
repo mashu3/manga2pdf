@@ -1,4 +1,10 @@
 # manga2pdf
+[![License: MIT](https://img.shields.io/pypi/l/manga2pdf)](https://opensource.org/licenses/MIT)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/manga2pdf)](https://pypi.org/project/manga2pdf)
+[![GitHub Release](https://img.shields.io/github/release/mashu3/manga2pdf?color=orange)](https://github.com/mashu3/manga2pdf/releases)
+[![PyPi Version](https://img.shields.io/pypi/v/manga2pdf?color=yellow)](https://pypi.org/project/manga2pdf/)
+[![Downloads](https://static.pepy.tech/badge/manga2pdf)](https://pepy.tech/project/manga2pdf)
+
 ## Overview
 This Python script is specifically designed to convert manga and comic files, including various formats such as zip, epub, and directories containing image files, to PDF format.
 
@@ -6,7 +12,7 @@ The resulting PDF files are optimized to resemble Japanese manga in terms of pag
 
 ## Requirement
 The script uses the Python libraries **[img2pdf](https://pypi.org/project/img2pdf/)** and **[pikepdf](https://pypi.org/project/pikepdf/)** to do the conversion.
-Moreover, it uses **[BeautifulSoup](https://pypi.org/project/beautifulsoup4/)** to read the EPUB files and **[rarfile](https://pypi.org/project/rarfile/)** to read the RAR archive files.
+Moreover, it uses **[lxml](https://pypi.org/project/lxml/)** to read the EPUB files and **[rarfile](https://pypi.org/project/rarfile/)** to read the RAR archive files.
 
 It requires the installation of these packages in order to work properly.
 
@@ -92,3 +98,5 @@ The GUI is currently under development and additional features are planned for f
 
 ## Author
 [mashu3](https://github.com/mashu3)
+
+[![Authors](https://contrib.rocks/image?repo=mashu3/manga2pdf)](https://github.com/mashu3/manga2pdf/graphs/contributors)
