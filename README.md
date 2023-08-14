@@ -12,19 +12,17 @@ The resulting PDF files are optimized to resemble Japanese manga in terms of pag
 
 ## Requirement
 The script uses the Python libraries **[img2pdf](https://pypi.org/project/img2pdf/)** and **[pikepdf](https://pypi.org/project/pikepdf/)** to do the conversion.
-Moreover, it uses **[lxml](https://pypi.org/project/lxml/)** to read the EPUB files and **[rarfile](https://pypi.org/project/rarfile/)** to read the RAR archive files.
+Moreover, it uses **[lxml](https://pypi.org/project/lxml/)** to read the EPUB files and **[rarfile](https://pypi.org/project/rarfile/)** to read the RAR archive files, and **[mobi](https://pypi.org/project/mobi/)** to handle both MOBI and AZW files.
 
 It requires the installation of these packages in order to work properly.
 
 **Note**
-- This script can only handle DRM-free fixed-layout EPUB files.
+- This script can only handle DRM-free fixed-layout EPUB, MOBI, and AZW3 files.
 - Please ensure that the image files you input are named in numerical order according to their page sequence. For example, `page_01.jpg`, `page_02.jpg`, `page_03.jpg`, and so on, or `001.jpg`, `002.jpg`, `003.jpg`, and so on. This will ensure that the pages are converted and compiled in the correct order.
 
 ## Usage
-This script can take input in the form of `zip`, `cbz`, `rar`, `cbr`, `epub` files or directories containing images (`jpg`, `jpeg`, `png`, `gif`, `bmp`) of manga or comic pages.
-
 The program can be executed from the command line with the following options:
-- The `input_path` argument represents the path to the input file. To execute the Python script correctly, specify the `input_path` argument as the path to the input file containing manga or comic images in any of the supported formats, such as `zip`, `cbz`, `rar`, `cbr`, `epub`, or a directory containing images in formats such as `jpg`, `jpeg`, `png`, `gif`, or `bmp`.
+- The `input_path` argument is the path to the input file. To execute the Python script correctly, specify the `input_path` argument as the path to the input file containing manga or comic images in one of the supported formats, such as `zip`, `cbz`, `rar`, `cbr`, `epub`, `mobi`, `azw`, or a directory containing images in formats such as `jpg`, `jpeg`, `png`, `gif`, or `bmp`.
 - The `output_path` argument is the path to the output PDF file. To use the script, simply run the Python script with the path to the input file or directory as the argument. If the `--output` option is not specified, the output file name will be automatically generated based on the name of the input file or directory.
 - The `pagelayout` parameter can take in the following values:
     - `SinglePage` -> Single page display

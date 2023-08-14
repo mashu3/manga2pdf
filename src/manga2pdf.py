@@ -6,12 +6,14 @@ import io
 import os
 import re
 import sys
+import mobi
+import shutil
 import img2pdf
 import pikepdf
-import tempfile
 import rarfile
 import zipfile
 import argparse
+import tempfile
 import warnings
 import numpy as np
 from PIL import Image
@@ -37,6 +39,11 @@ class MangaPdfConverter():
     # Function to determine w   hether the given file name is an image file or not
     def is_image_file(self, filename):
         return any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp'])
+    
+    # Function to determine whether the given path is a mobi filr or azw file or not
+    def is_mobi_file(self, path):
+        ext = os.path.splitext(path)[1].lower()
+        return ext in ['.mobi', '.azw3', '.azw']
     
     # Function to determine whether the given path is an epub file or not
     def is_epub_file(self, path):
@@ -241,10 +248,27 @@ class MangaPdfConverter():
                 else:
                     epub_metadata[key] = None
         return epub_metadata
-
+    
     # Function to convert input files to a PDF file
     def convert(self):
-        if self.is_epub_file(self.input_path):
+        if self.is_mobi_file(self.input_path):
+            try:
+                sys.stdout = open(os.devnull, 'w')
+                tmpfile, self.epub_path = mobi.extract(self.input_path)
+                sys.stdout.close()
+                sys.stdout = sys.__stdout__
+                if self.is_epub_file(self.epub_path):
+                    with zipfile.ZipFile(self.epub_path) as epub:
+                        page_names = self.extract_epub_contents(epub)[0]
+                        page_items = self.extract_epub_contents(epub)[1]
+                        ncx_name = self.extract_epub_contents(epub)[2]
+                        opf_name = self.extract_epub_contents(epub)[3]
+                        page_index = self.extract_epub_index(epub, page_names, ncx_name)
+                        epub_metadata = self.extract_epub_metadata(epub, opf_name)
+                shutil.rmtree(tmpfile)
+            except Exception as e:
+                print(f"Error extracting the MOBI file: {e}")
+        elif self.is_epub_file(self.input_path):
             with zipfile.ZipFile(self.input_path) as epub:
                 page_names = self.extract_epub_contents(epub)[0]
                 page_items = self.extract_epub_contents(epub)[1]
@@ -283,7 +307,7 @@ class MangaPdfConverter():
         pdf_obj = io.BytesIO(img2pdf.convert(page_items))
         
         with pikepdf.Pdf.open(pdf_obj) as pdf:
-            if self.is_epub_file(self.input_path):
+            if self.is_epub_file(self.input_path) or self.is_epub_file(self.epub_path):
                 with pdf.open_metadata(set_pikepdf_as_editor=False) as pdf_metadata:
                     pdf_metadata['dc:title'] = epub_metadata['title'] if epub_metadata['title'] else ''
                     pdf_metadata['dc:creator'] = epub_metadata['creator'] if epub_metadata['creator'] else ''
@@ -350,7 +374,7 @@ TwoColumnRight -> Separate Cover, Scrolling Spread View''')
     parser.add_argument('-m', '--pagemode', type=str, default='UseNone', 
                         choices=['UseOutlines', 'UseThumbs', 'FullScreen', 'UseOC', 'UseAttachments'],
                         help='''\
-(default)UseNone -> Neither document outline nor thumbnail images visible
+(default) UseNone -> Neither document outline nor thumbnail images visible
 UseOutlines -> Document outline visible
 UseThumbs -> Thumbnail images visible
 FullScreen -> Full-screen mode
@@ -359,7 +383,7 @@ UseAttachments -> Attachments panel visible''')
     parser.add_argument('-d', '--direction', type=str, default='R2L', choices=['L2R', 'R2L'],
                         help='''\
 L2R -> Left Binding
-(default)R2L -> Right Binding''')
+(default) R2L -> Right Binding''')
     parser.add_argument('-j', '--jpeg', action='store_true', help='Convert images to JPEG')
     parser.add_argument('-g', '--grayscale', action='store_true', help='Convert images to grayscale')
     parser.add_argument('-gui', action='store_true', help='Launch GUI')
@@ -375,8 +399,8 @@ L2R -> Left Binding
             sys.exit(1)
         if not os.path.isdir(args.input_path):
             ext = os.path.splitext(args.input_path)[1].lower()
-            if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.epub']:
-                print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, and .epub.')
+            if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.epub', '.mobi', '.azw3', '.azw']:
+                print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, .mobi, .azw3, .azw, and .epub.')
                 sys.exit(1)
         if args.output_path is not None:
             if not args.output_path.endswith('.pdf'):

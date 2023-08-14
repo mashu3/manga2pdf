@@ -220,7 +220,7 @@ class MangaPdfConverterGUI:
             self.set_output_path(path)
 
     def browse_input_file(self):
-        filetypes = (("zip files", "*.zip"), ("cbz files", "*.cbz"), ("rar files", "*.rar"), ("cbr files", "*.cbr"), ("epub files", "*.epub"), ("all files", "*.*"))
+        filetypes = (("zip files", "*.zip"), ("cbz files", "*.cbz"), ("rar files", "*.rar"), ("cbr files", "*.cbr"), ("epub files", "*.epub"), ("mobi files", "*.mobi"), ("azw files", "*.azw3"), ("azw files", "*.azw"), ("all files", "*.*"))
         path = filedialog.askopenfilename(filetypes=filetypes)
         if path:
             self.input_path = path.replace('/', os.sep)
@@ -368,6 +368,9 @@ class MangaPdfConverterGUI:
                 messagebox.showerror("Error", complete_error_text[self.language], parent=self.master)
 
         except Exception as e:
+            # Close process window when done
+            processing_window.grab_release()
+            processing_window.destroy()
             complete_error_text = {"en": "Conversion failed", "ja": "エラーで変換処理に失敗しました"}
             messagebox.showerror(title="Error", message=f"{complete_error_text[self.language]}\n{str(e)}", parent=self.master)
 
