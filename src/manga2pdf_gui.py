@@ -4,12 +4,100 @@
 
 import os
 import sys
+import pikepdf
+import zipfile
+import datetime
 import platform
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from manga2pdf import MangaPdfConverter
+
+class CalendarWidget(tk.Toplevel):
+    def __init__(self, master=None, callback=None, x=0, y=0, **kw):
+        super().__init__(master, **kw)
+        self.attributes('-topmost', True)
+        self.callback = callback
+        self.geometry(f"+{x}+{y}")
+        self.current_date = datetime.datetime.now()
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.frame_top = tk.Frame(self)
+        self.frame_top.pack(pady=1)
+        self.prev_year_btn = tk.Button(self.frame_top, text="<", font=("", 10), command=self.prev_year, relief="flat", repeatdelay=100, repeatinterval=300)
+        self.prev_year_btn.pack(side="left", padx=1)
+        self.label_year = tk.Label(self.frame_top, text=self.current_date.year, font=("", 10))
+        self.label_year.pack(side="left")
+        self.next_year_btn = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_year, relief="flat", repeatdelay=100, repeatinterval=300)
+        self.next_year_btn.pack(side="left", padx=1)
+        self.previous_month = tk.Button(self.frame_top, text="<", font=("", 10), command=self.prev_month, relief="flat", repeatdelay=100, repeatinterval=300)
+        self.previous_month.pack(side="left", padx=1)
+        self.label_month = tk.Label(self.frame_top, text=self.current_date.strftime("%B"), font=("", 10))
+        self.label_month.pack(side="left", padx=1)
+        self.next_month = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_month, relief="flat", repeatdelay=100, repeatinterval=300)
+        self.next_month.pack(side="left", padx=1)
+
+        self.frame_week = tk.Frame(self)
+        self.frame_week.pack()
+
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        colors = ["black", "black", "black", "black", "black", "blue", "red"]
+        for i, (day, color) in enumerate(zip(days, colors)):
+            lbl = tk.Button(self.frame_week, text=day, font=("", 10), disabledforeground=color, state="disabled", height=1, width=1, relief="flat", padx=5, pady=1)
+            lbl.grid(column=i, row=0)
+
+        self.frame_calendar = tk.Frame(self)
+        self.frame_calendar.pack()
+        self.update_calendar()
+
+    def update_calendar(self):
+        for widget in self.frame_calendar.winfo_children():
+            widget.destroy()
+
+        start_date = self.current_date.replace(day=1)
+        if start_date.weekday() != 0:
+            start_date -= datetime.timedelta(days=start_date.weekday())
+        end_date = start_date + datetime.timedelta(weeks=6)
+
+        delta = datetime.timedelta(days=1)
+        current_date = start_date
+
+        row = 0
+        while current_date < end_date:
+            for col in range(7):
+                day = current_date.day
+                btn_state = "disabled" if current_date.month != self.current_date.month else "normal"
+                btn = tk.Button(self.frame_calendar, text=day, font=("", 10), height=1, width=1, relief="flat", state=btn_state, padx=5, pady=1,
+                                command=lambda d=current_date: self.set_date(d))
+                btn.grid(column=col, row=row)
+                current_date += delta
+            row += 1
+
+        self.label_year["text"] = self.current_date.year
+        self.label_month["text"] = self.current_date.strftime("%B")
+
+    def set_date(self, date):
+        if self.callback:
+            self.callback(date)
+        self.destroy()
+
+    def prev_month(self):
+        self.current_date -= datetime.timedelta(days=28)
+        self.update_calendar()
+
+    def next_month(self):
+        self.current_date += datetime.timedelta(days=28)
+        self.update_calendar()
+
+    def prev_year(self):
+        self.current_date = datetime.date(self.current_date.year - 1, self.current_date.month, 1)
+        self.update_calendar()
+
+    def next_year(self):
+        self.current_date = datetime.date(self.current_date.year + 1, self.current_date.month, 1)
+        self.update_calendar()
 
 class MangaPdfConverterGUI:
     def __init__(self, master):
@@ -26,6 +114,7 @@ class MangaPdfConverterGUI:
         direction_frame = ttk.Frame(master)
         pagelayout_frame = ttk.Frame(master)
         pagemode_frame = ttk.Frame(master)
+        metadata_frame = ttk.Frame(master)
         button_frame = ttk.Frame(master)
 
         # Set grid layout
@@ -34,43 +123,44 @@ class MangaPdfConverterGUI:
         direction_frame.grid(row=2, column=0, sticky='nswe')
         pagelayout_frame.grid(row=1, column=1, rowspan=2, sticky='nswe')
         pagemode_frame.grid(row=1, column=2, rowspan=2, sticky='nswe')
-        button_frame.grid(row=3, column=0, columnspan=3, sticky='we')
+        metadata_frame.grid(row=3, column=0, columnspan=3, sticky='we')
+        button_frame.grid(row=4, column=0, columnspan=3, sticky='we')
 
         # Add input path label and entry
         input_frame = ttk.Frame(path_frame)
-        input_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+        input_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
         self.input_label_text = {"en": "Input Path:", "ja": "入力パス:"}
         self.input_label = ttk.Label(input_frame, text=self.input_label_text[self.language])
-        self.input_label.pack(side="left", padx=10, pady=5)
+        self.input_label.pack(side="left", padx=10, pady=2)
         self.input_file_button_text = {"en": "Select File", "ja": "ファイル選択"}
         self.input_file_button = ttk.Button(input_frame, text=self.input_file_button_text[self.language], command=self.browse_input_file)
-        self.input_file_button.pack(side="right", pady=5)
+        self.input_file_button.pack(side="right", pady=2)
         self.input_directory_button_text = {"en": "Select Directory", "ja": "フォルダ選択"}
         self.input_directory_button = ttk.Button(input_frame, text=self.input_directory_button_text[self.language], command=self.browse_input_directory)
-        self.input_directory_button.pack(side="right", padx=10, pady=5)
+        self.input_directory_button.pack(side="right", padx=10, pady=2)
         if self.system == "Windows":
             self.input_entry = ttk.Entry(path_frame, width=90)
         else:
             self.input_entry = ttk.Entry(path_frame, width=65)
-        self.input_entry.grid(row=1, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.input_entry.grid(row=1, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
 
         # Add output path label and entry
-        output_frame = tk.Frame(path_frame)
-        output_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+        output_frame = ttk.Frame(path_frame)
+        output_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
         self.output_label_text = {"en": "Output Path:", "ja": "出力パス:"}
         self.output_label = ttk.Label(output_frame, text=self.output_label_text[self.language])
-        self.output_label.pack(side="left", padx=10, pady=5)
+        self.output_label.pack(side="left", padx=10, pady=2)
         self.output_browse_button_text = {"en": "Browse", "ja": "参照"}
         self.output_browse_button = ttk.Button(output_frame, text=self.output_browse_button_text[self.language], command=self.browse_output_path)
-        self.output_browse_button.pack(side="right", pady=5)
+        self.output_browse_button.pack(side="right", pady=2)
         self.auto_output_button_text = {"en": "Auto", "ja": "自動設定"}
         self.auto_output_button = ttk.Button(output_frame, text=self.auto_output_button_text[self.language], command=self.auto_output_path)
-        self.auto_output_button.pack(side="right", padx=10, pady=5)
+        self.auto_output_button.pack(side="right", padx=10, pady=2)
         if self.system == "Windows":
             self.output_entry = ttk.Entry(path_frame, width=90)
         else:
             self.output_entry = ttk.Entry(path_frame, width=65)
-        self.output_entry.grid(row=3, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.output_entry.grid(row=3, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
 
         # Create a LabelFrame for the conversion options
         self.conversion_label_text = {"en": "Conversion Options:", "ja": "圧縮方式:"}
@@ -147,6 +237,67 @@ class MangaPdfConverterGUI:
             self.pagemode_radio.append(pagemode_radio)
             pagemode_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
+        # Create a LabelFrame for the metadata options
+        self.metadata_label_text = {"en": "Metadata:", "ja": "メタデータ:"}
+        self.metadata_labelframe = ttk.LabelFrame(metadata_frame, text=self.metadata_label_text[self.language], padding=5)
+        self.metadata_labelframe.grid(row=0, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
+
+        self.title_label_text = {"en": "Title:", "ja": "タイトル:"}
+        self.title_label = ttk.Label(self.metadata_labelframe, text=self.title_label_text[self.language])
+        self.title_label.grid(row=0, column=0, padx=10, pady=2, sticky="w")
+        if self.system == "Windows":
+            self.title_entry = ttk.Entry(self.metadata_labelframe, width=65)
+        else:
+            self.title_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.title_entry.grid(row=0, column=1, padx=10, pady=2, sticky="w")
+
+        self.author_label_text = {"en": "Author:", "ja": "作成者:"}
+        self.author_label = ttk.Label(self.metadata_labelframe, text=self.author_label_text[self.language])
+        self.author_label.grid(row=1, column=0, padx=10, pady=2, sticky="w")
+        if self.system == "Windows":
+            self.author_entry = ttk.Entry(self.metadata_labelframe, width=65)
+        else:
+            self.author_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.author_entry.grid(row=1, column=1, padx=10, pady=2, sticky="w")
+
+        self.publisher_label_text = {"en": "Publisher:", "ja": "出版社:"}
+        self.publisher_label = ttk.Label(self.metadata_labelframe, text=self.publisher_label_text[self.language])
+        self.publisher_label.grid(row=2, column=0, padx=10, pady=2, sticky="w")
+        if self.system == "Windows":
+            self.publisher_entry = ttk.Entry(self.metadata_labelframe, width=65)
+        else:
+            self.publisher_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.publisher_entry.grid(row=2, column=1, padx=10, pady=2, sticky="w")
+
+        self.creation_date_label_text = {"en": "Create Date:", "ja": "作成日:"}
+        self.creation_date_label = ttk.Label(self.metadata_labelframe, text=self.creation_date_label_text[self.language])
+        self.creation_date_label.grid(row=3, column=0, padx=10, pady=2, sticky="w")
+        creation_date_frame = ttk.Frame(self.metadata_labelframe)
+        creation_date_frame.grid(row=3, column=1, columnspan=2, padx=10, pady=2, sticky="w")
+        self.creation_date_combobox = ttk.Combobox(creation_date_frame, width=10)
+        self.creation_date_combobox.bind('<Button-1>', lambda e: self.select_date(self.creation_date_combobox, master))
+        self.creation_date_combobox.pack(side="left")
+        self.creation_time_combobox = self.create_time_combobox(creation_date_frame)
+        self.creation_time_combobox.pack(side="left", padx=5)
+
+        self.modify_date_label_text = {"en": "Modify Date:", "ja": "更新日:"}
+        self.modify_date_label = ttk.Label(self.metadata_labelframe, text=self.modify_date_label_text[self.language])
+        self.modify_date_label.grid(row=4, column=0, padx=10, pady=2, sticky="w")
+        modify_date_frame = ttk.Frame(self.metadata_labelframe)
+        modify_date_frame.grid(row=4, column=1, columnspan=2, padx=10, pady=2, sticky="w")
+        self.modify_date_combobox = ttk.Combobox(modify_date_frame, width=10)
+        self.modify_date_combobox.bind('<Button-1>', lambda e: self.select_date(self.modify_date_combobox, master))
+        self.modify_date_combobox.pack(side="left")
+        self.modify_time_combobox = self.create_time_combobox(modify_date_frame)
+        self.modify_time_combobox.pack(side="left", padx=5)
+
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.creation_date_combobox.set(current_date)
+        self.creation_time_combobox.set(current_time)
+        self.modify_date_combobox.set(current_date)
+        self.modify_time_combobox.set(current_time)
+
         # Add language toggle button
         self.language_button_text = {"en": "日本語表示に切替", "ja": "Display in English"}
         self.language_button = ttk.Button(button_frame, text=self.language_button_text[self.language], command=self.toggle_language)
@@ -171,6 +322,23 @@ class MangaPdfConverterGUI:
 
         # Center the window
         master.eval('tk::PlaceWindow . center')
+
+    def select_date(self, combobox, root):
+        def date_callback(selected_date):
+            combobox.delete(0, tk.END)
+            combobox.insert(0, selected_date.strftime("%Y-%m-%d"))
+            combobox.set(selected_date.strftime("%Y-%m-%d"))
+
+        x = combobox.winfo_rootx()
+        y = combobox.winfo_rooty() + combobox.winfo_height()
+        CalendarWidget(master=root, callback=date_callback, x=x, y=y)
+        
+    def create_time_combobox(self, frame):
+        hours = [f"{h:02d}" for h in range(24)]
+        minutes = [f"{m:02d}" for m in range(60)]
+        time_values = [f"{h}:{m}:00" for h in hours for m in minutes]
+        time_combobox = ttk.Combobox(frame, values=time_values, width=8)
+        return time_combobox
 
     def toggle_language(self):
         # Toggle the language between english and japanese
@@ -205,6 +373,12 @@ class MangaPdfConverterGUI:
         for i, pagemode in enumerate(self.pagemode_text[self.language]):
             self.pagemode_radio[i].configure(text=pagemode)
         self.pagelayout_var.set(self.pagelayout_var.get())
+        self.metadata_labelframe.configure(text=self.metadata_label_text[self.language])
+        self.title_label.configure(text=self.title_label_text[self.language])
+        self.author_label.configure(text=self.author_label_text[self.language])
+        self.publisher_label.configure(text=self.publisher_label_text[self.language])
+        self.creation_date_label.configure(text=self.creation_date_label_text[self.language])
+        self.modify_date_label.configure(text=self.modify_date_label_text[self.language])
         self.language_button.configure(text=self.language_button_text[self.language])
         self.convert_button.configure(text=self.convert_button_text[self.language])
         self.quit_button.configure(text=self.quit_button_text[self.language])
@@ -220,13 +394,41 @@ class MangaPdfConverterGUI:
             self.set_output_path(path)
 
     def browse_input_file(self):
-        filetypes = (("zip files", "*.zip"), ("cbz files", "*.cbz"), ("rar files", "*.rar"), ("cbr files", "*.cbr"), ("epub files", "*.epub"), ("all files", "*.*"))
+        filetypes = (("zip files", "*.zip"), ("cbz files", "*.cbz"), ("rar files", "*.rar"), ("cbr files", "*.cbr"), ("epub files", "*.epub"), ("mobi files", "*.mobi"), ("azw files", "*.azw3"), ("azw files", "*.azw"), ("all files", "*.*"))
         path = filedialog.askopenfilename(filetypes=filetypes)
+
+        self.title_entry.delete(0, tk.END)
+        self.author_entry.delete(0, tk.END)
+        self.publisher_entry.delete(0, tk.END)
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.creation_date_combobox.set(current_date)
+        self.creation_time_combobox.set(current_time)
+        self.modify_date_combobox.set(current_date)
+        self.modify_time_combobox.set(current_time)
+
         if path:
             self.input_path = path.replace('/', os.sep)
             self.set_output_path(os.path.splitext(path)[0] + ".pdf")
             self.input_entry.delete(0, tk.END)
             self.input_entry.insert(0, path)
+
+            def read_metadata(input_path=self.input_path):
+                converter = MangaPdfConverter(input_path=self.input_path, output_path=self.output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
+                if converter.is_epub_file(input_path):
+                    with zipfile.ZipFile(self.input_path) as epub:
+                        opf_name = converter.extract_epub_contents(epub)[3]
+                        epub_metadata = converter.extract_epub_metadata(epub, opf_name)
+                        self.title_entry.delete(0, tk.END)
+                        self.title_entry.insert(0, epub_metadata['title'])
+                        self.author_entry.delete(0, tk.END)
+                        self.author_entry.insert(0, epub_metadata['creator'])
+                        self.publisher_entry.delete(0, tk.END)
+                        self.publisher_entry.insert(0, epub_metadata['publisher'])
+                        if epub_metadata['date']:
+                            self.creation_date_combobox.set(epub_metadata['date'])
+                #print(pdf_metadata)
+            read_metadata()
 
     def browse_input_directory(self):
         path = filedialog.askdirectory()
@@ -273,6 +475,17 @@ class MangaPdfConverterGUI:
 
         # Set the output path and filename
         self.output_path = output_path
+
+    def set_metadata(self, output_path):
+        with pikepdf.Pdf.open(output_path, allow_overwriting_input=True) as pdf:
+            with pdf.open_metadata(set_pikepdf_as_editor=False) as pdf_metadata:
+                pdf_metadata['dc:title'] = self.title_entry.get() if self.title_entry.get() else ''
+                pdf_metadata['dc:creator'] = [self.author_entry.get() if self.author_entry.get() else '']
+                pdf_metadata['dc:publisher'] = self.publisher_entry.get() if self.publisher_entry.get() else ''
+                pdf_metadata['xmp:CreateDate'] = f"{self.creation_date_combobox.get()} {self.creation_time_combobox.get()}"
+                pdf_metadata['xmp:ModifyDate'] = f"{self.modify_date_combobox.get()} {self.modify_time_combobox.get()}"
+                pdf_metadata['pdf:Producer'] = ''
+            pdf.save(output_path, linearize=True)
 
     def run_convert(self):
         # Get input and output paths
@@ -351,6 +564,7 @@ class MangaPdfConverterGUI:
                 converter.convert()
             else:
                 converter.convert()
+            self.set_metadata(output_path)
 
             # Close process window when done
             processing_window.grab_release()
@@ -368,6 +582,9 @@ class MangaPdfConverterGUI:
                 messagebox.showerror("Error", complete_error_text[self.language], parent=self.master)
 
         except Exception as e:
+            # Close process window when done
+            processing_window.grab_release()
+            processing_window.destroy()
             complete_error_text = {"en": "Conversion failed", "ja": "エラーで変換処理に失敗しました"}
             messagebox.showerror(title="Error", message=f"{complete_error_text[self.language]}\n{str(e)}", parent=self.master)
 
