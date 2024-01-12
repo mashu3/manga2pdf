@@ -1,15 +1,21 @@
 from setuptools import setup, find_packages
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 
-INSTALL_REQUIRES = (
+install_requires = [
     "lxml",
+    "mobi",
     "numpy",
     "img2pdf",
     "Pillow",
     "pikepdf",
     "rarfile"
-)
+]
+
+extras_require = {
+    'windows': ["win32_setctime"]
+}
+
 CLASSIFIERS=[
     'License :: OSI Approved :: MIT License',
     'Programming Language :: Python :: 3.9',
@@ -26,12 +32,13 @@ setup(
     long_description_content_type="text/markdown",
     keywords="manga comic pdf converter",
     url="https://github.com/mashu3/manga2pdf",
-    license='MIT',
+    license="MIT",
     package_dir={"": "src"},
     py_modules=["manga2pdf", "manga2pdf_gui"],
     packages = find_packages("src"),
     classifiers=CLASSIFIERS,
-    install_requires=INSTALL_REQUIRES,
+    install_requires=install_requires,
+    extras_require=extras_require,
     entry_points={
         "console_scripts": [
             "manga2pdf=manga2pdf:main",

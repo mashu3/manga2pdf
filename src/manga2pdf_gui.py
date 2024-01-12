@@ -8,6 +8,7 @@ import pikepdf
 import zipfile
 import datetime
 import platform
+import subprocess
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
@@ -240,7 +241,7 @@ class MangaPdfConverterGUI:
         # Create a LabelFrame for the metadata options
         self.metadata_label_text = {"en": "Metadata:", "ja": "メタデータ:"}
         self.metadata_labelframe = ttk.LabelFrame(metadata_frame, text=self.metadata_label_text[self.language], padding=5)
-        self.metadata_labelframe.grid(row=0, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
+        self.metadata_labelframe.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
 
         self.title_label_text = {"en": "Title:", "ja": "タイトル:"}
         self.title_label = ttk.Label(self.metadata_labelframe, text=self.title_label_text[self.language])
@@ -279,6 +280,13 @@ class MangaPdfConverterGUI:
         self.creation_date_combobox.pack(side="left")
         self.creation_time_combobox = self.create_time_combobox(creation_date_frame)
         self.creation_time_combobox.pack(side="left", padx=5)
+        self.ctime_var = tk.BooleanVar()
+        self.ctime_var.set(True)
+        self.ctime_label_text = {"en": "Sync File Timestamp", "ja": "ファイルのタイムスタンプ変更"}
+        self.ctime_check_box = ttk.Checkbutton(creation_date_frame, text=self.ctime_label_text[self.language], variable=self.ctime_var)        
+        self.ctime_check_box.pack(side="left", padx=5)
+        if self.system not in ["Windows", "Darwin"]:
+            self.ctime_check_box.configure(state=tk.DISABLED)
 
         self.modify_date_label_text = {"en": "Modify Date:", "ja": "更新日:"}
         self.modify_date_label = ttk.Label(self.metadata_labelframe, text=self.modify_date_label_text[self.language])
@@ -290,6 +298,11 @@ class MangaPdfConverterGUI:
         self.modify_date_combobox.pack(side="left")
         self.modify_time_combobox = self.create_time_combobox(modify_date_frame)
         self.modify_time_combobox.pack(side="left", padx=5)
+        self.mtime_var = tk.BooleanVar()
+        self.mtime_var.set(True)
+        self.mtime_label_text = {"en": "Sync File Timestamp", "ja": "ファイルのタイムスタンプ変更"}
+        self.mtime_check_box = ttk.Checkbutton(modify_date_frame, text=self.mtime_label_text[self.language], variable=self.mtime_var)        
+        self.mtime_check_box.pack(side="left", padx=5)
 
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
@@ -378,7 +391,9 @@ class MangaPdfConverterGUI:
         self.author_label.configure(text=self.author_label_text[self.language])
         self.publisher_label.configure(text=self.publisher_label_text[self.language])
         self.creation_date_label.configure(text=self.creation_date_label_text[self.language])
+        self.ctime_check_box.configure(text=self.ctime_label_text[self.language])
         self.modify_date_label.configure(text=self.modify_date_label_text[self.language])
+        self.mtime_check_box.configure(text=self.mtime_label_text[self.language])
         self.language_button.configure(text=self.language_button_text[self.language])
         self.convert_button.configure(text=self.convert_button_text[self.language])
         self.quit_button.configure(text=self.quit_button_text[self.language])
@@ -487,6 +502,29 @@ class MangaPdfConverterGUI:
                 pdf_metadata['pdf:Producer'] = ''
             pdf.save(output_path, linearize=True)
 
+    def set_timestamp(self, output_path):
+        if self.ctime_var.get():
+           if self.system == "Windows":
+                import win32_setctime
+                ctime_new = datetime.datetime.strptime(f"{self.creation_date_combobox.get()} {self.creation_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
+                win32_setctime.setctime(output_path, ctime_new.timestamp())
+           elif self.system == "Darwin":
+                date_object = datetime.datetime.strptime(self.creation_date_combobox.get(), "%Y-%m-%d")
+                formatted_date = date_object.strftime("%m/%d/%Y")
+                command = ["SetFile", "-d", f"{formatted_date} {self.creation_time_combobox.get()}", output_path]
+                try:
+                    subprocess.run(command, check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Error: {e}")
+                except FileNotFoundError:
+                    print("SetFile command not found. Please ensure that Xcode Command Line Tools are installed.")
+           else:
+                print("Error: Unable to modify 'ctime' in Linux environment")
+
+        mtime_new = datetime.datetime.strptime(f"{self.modify_date_combobox.get()} {self.modify_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
+        if self.mtime_var.get():
+            os.utime(path=output_path, times=(mtime_new.timestamp(), mtime_new.timestamp()))
+
     def run_convert(self):
         # Get input and output paths
         input_path = self.input_entry.get()
@@ -565,6 +603,7 @@ class MangaPdfConverterGUI:
             else:
                 converter.convert()
             self.set_metadata(output_path)
+            self.set_timestamp(output_path)
 
             # Close process window when done
             processing_window.grab_release()
