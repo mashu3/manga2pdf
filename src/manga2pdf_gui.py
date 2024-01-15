@@ -428,22 +428,20 @@ class MangaPdfConverterGUI:
             self.input_entry.delete(0, tk.END)
             self.input_entry.insert(0, path)
 
-            def read_metadata(input_path=self.input_path):
-                converter = MangaPdfConverter(input_path=self.input_path, output_path=self.output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
-                if converter.is_epub_file(input_path):
-                    with zipfile.ZipFile(self.input_path) as epub:
-                        opf_name = converter.extract_epub_contents(epub)[3]
-                        epub_metadata = converter.extract_epub_metadata(epub, opf_name)
-                        self.title_entry.delete(0, tk.END)
-                        self.title_entry.insert(0, epub_metadata['title'])
-                        self.author_entry.delete(0, tk.END)
-                        self.author_entry.insert(0, epub_metadata['creator'])
-                        self.publisher_entry.delete(0, tk.END)
-                        self.publisher_entry.insert(0, epub_metadata['publisher'])
-                        if epub_metadata['date']:
-                            self.creation_date_combobox.set(epub_metadata['date'])
-                #print(pdf_metadata)
-            read_metadata()
+            converter = MangaPdfConverter(input_path=self.input_path, output_path=self.output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
+            if converter.is_epub_file(input_path):
+                with zipfile.ZipFile(self.input_path) as epub:
+                    opf_name = converter.extract_epub_contents(epub)[3]
+                    epub_metadata = converter.extract_epub_metadata(epub, opf_name)
+                    self.title_entry.delete(0, tk.END)
+                    self.title_entry.insert(0, epub_metadata['title'])
+                    self.author_entry.delete(0, tk.END)
+                    self.author_entry.insert(0, epub_metadata['creator'])
+                    self.publisher_entry.delete(0, tk.END)
+                    self.publisher_entry.insert(0, epub_metadata['publisher'])
+                    if epub_metadata['date']:
+                        self.creation_date_combobox.set(epub_metadata['date'])
+            #print(pdf_metadata)
 
     def browse_input_directory(self):
         path = filedialog.askdirectory()
