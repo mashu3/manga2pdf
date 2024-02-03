@@ -429,7 +429,7 @@ class MangaPdfConverterGUI:
             self.input_entry.insert(0, path)
 
             converter = MangaPdfConverter(input_path=self.input_path, output_path=self.output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
-            if converter.is_epub_file(input_path):
+            if converter.is_epub_file(self.input_path):
                 with zipfile.ZipFile(self.input_path) as epub:
                     opf_name = converter.extract_epub_contents(epub)[3]
                     epub_metadata = converter.extract_epub_metadata(epub, opf_name)
