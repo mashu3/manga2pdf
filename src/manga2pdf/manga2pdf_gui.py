@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 mashu3
+# Copyright (c) 2025 mashu3
 # This software is released under the MIT License, see LICENSE.
 
 import os
 import sys
+import i18n
+import json
 import pikepdf
 import zipfile
 import datetime
@@ -13,11 +15,12 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-from manga2pdf import MangaPdfConverter
+from .manga2pdf import MangaPdfConverter
 
 class CalendarWidget(tk.Toplevel):
     def __init__(self, master=None, callback=None, x=0, y=0, **kw):
         super().__init__(master, **kw)
+        self.title(i18n.t('gui.calendar'))
         self.attributes('-topmost', True)
         self.callback = callback
         self.geometry(f"+{x}+{y}")
@@ -35,15 +38,15 @@ class CalendarWidget(tk.Toplevel):
         self.next_year_btn.pack(side="left", padx=1)
         self.previous_month = tk.Button(self.frame_top, text="<", font=("", 10), command=self.prev_month, relief="flat", repeatdelay=100, repeatinterval=300)
         self.previous_month.pack(side="left", padx=1)
-        self.label_month = tk.Label(self.frame_top, text=self.current_date.strftime("%B"), font=("", 10))
+        self.label_month = tk.Label(self.frame_top, text=i18n.t(f"gui.months")[self.current_date.month-1], font=("", 10))
         self.label_month.pack(side="left", padx=1)
-        self.next_month = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_month, relief="flat", repeatdelay=100, repeatinterval=300)
-        self.next_month.pack(side="left", padx=1)
+        self.next_month_btn = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_month, relief="flat", repeatdelay=100, repeatinterval=300)
+        self.next_month_btn.pack(side="left", padx=1)
 
         self.frame_week = tk.Frame(self)
         self.frame_week.pack()
 
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        days = i18n.t('gui.weekdays_short')
         colors = ["black", "black", "black", "black", "black", "blue", "red"]
         for i, (day, color) in enumerate(zip(days, colors)):
             lbl = tk.Button(self.frame_week, text=day, font=("", 10), disabledforeground=color, state="disabled", height=1, width=1, relief="flat", padx=5, pady=1)
@@ -77,7 +80,7 @@ class CalendarWidget(tk.Toplevel):
             row += 1
 
         self.label_year["text"] = self.current_date.year
-        self.label_month["text"] = self.current_date.strftime("%B")
+        self.label_month["text"] = i18n.t(f"gui.months")[self.current_date.month-1]
 
     def set_date(self, date):
         if self.callback:
@@ -103,11 +106,28 @@ class CalendarWidget(tk.Toplevel):
 class MangaPdfConverterGUI:
     def __init__(self, master):
         self.master = master
-        self.language = "en" # Set default language to english
+        self.lang_map = {'English': 'en_US', '日本語': 'ja_JP', 'Français': 'fr_FR', 'Español': 'es_ES', 'Deutsch': 'de_DE', '简体中文': 'zh_CN', '繁體中文': 'zh_TW'}
+        self.rev_lang_map = {v: k for k, v in self.lang_map.items()}
+        self.setup_i18n()
         master.title("Manga PDF Converter")
         self.master.resizable(0, 0)
         self.processing_window = None
         self.system = platform.system()
+
+        self.long_languages = {'fr', 'de', 'es'}
+        if self.system == "Windows":
+            self.default_entry_width = 90
+            self.long_entry_width = 110
+            self.default_meta_entry_width = 65
+            self.long_meta_entry_width = 80
+        else:
+            self.default_entry_width = 65
+            self.long_entry_width = 80
+            self.default_meta_entry_width = 50
+            self.long_meta_entry_width = 65
+            
+        current_entry_width = self.long_entry_width if i18n.get('locale') in self.long_languages else self.default_entry_width
+        current_meta_entry_width = self.long_meta_entry_width if i18n.get('locale') in self.long_languages else self.default_meta_entry_width
 
         # Create five frames
         path_frame =ttk.Frame(master)
@@ -130,148 +150,104 @@ class MangaPdfConverterGUI:
         # Add input path label and entry
         input_frame = ttk.Frame(path_frame)
         input_frame.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
-        self.input_label_text = {"en": "Input Path:", "ja": "入力パス:"}
-        self.input_label = ttk.Label(input_frame, text=self.input_label_text[self.language])
+        self.input_label = ttk.Label(input_frame, text=i18n.t('gui.input_path'))
         self.input_label.pack(side="left", padx=10, pady=2)
-        self.input_file_button_text = {"en": "Select File", "ja": "ファイル選択"}
-        self.input_file_button = ttk.Button(input_frame, text=self.input_file_button_text[self.language], command=self.browse_input_file)
+        self.input_file_button = ttk.Button(input_frame, text=i18n.t('gui.select_file'), command=self.browse_input_file)
         self.input_file_button.pack(side="right", pady=2)
-        self.input_directory_button_text = {"en": "Select Directory", "ja": "フォルダ選択"}
-        self.input_directory_button = ttk.Button(input_frame, text=self.input_directory_button_text[self.language], command=self.browse_input_directory)
+        self.input_directory_button = ttk.Button(input_frame, text=i18n.t('gui.select_directory'), command=self.browse_input_directory)
         self.input_directory_button.pack(side="right", padx=10, pady=2)
-        if self.system == "Windows":
-            self.input_entry = ttk.Entry(path_frame, width=90)
-        else:
-            self.input_entry = ttk.Entry(path_frame, width=65)
+        self.input_entry = ttk.Entry(path_frame, width=current_entry_width)
         self.input_entry.grid(row=1, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
 
         # Add output path label and entry
         output_frame = ttk.Frame(path_frame)
         output_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
-        self.output_label_text = {"en": "Output Path:", "ja": "出力パス:"}
-        self.output_label = ttk.Label(output_frame, text=self.output_label_text[self.language])
+        self.output_label = ttk.Label(output_frame, text=i18n.t('gui.output_path'))
         self.output_label.pack(side="left", padx=10, pady=2)
-        self.output_browse_button_text = {"en": "Browse", "ja": "参照"}
-        self.output_browse_button = ttk.Button(output_frame, text=self.output_browse_button_text[self.language], command=self.browse_output_path)
+        self.output_browse_button = ttk.Button(output_frame, text=i18n.t('gui.browse'), command=self.browse_output_path)
         self.output_browse_button.pack(side="right", pady=2)
-        self.auto_output_button_text = {"en": "Auto", "ja": "自動設定"}
-        self.auto_output_button = ttk.Button(output_frame, text=self.auto_output_button_text[self.language], command=self.auto_output_path)
+        self.auto_output_button = ttk.Button(output_frame, text=i18n.t('gui.auto'), command=self.auto_output_path)
         self.auto_output_button.pack(side="right", padx=10, pady=2)
-        if self.system == "Windows":
-            self.output_entry = ttk.Entry(path_frame, width=90)
-        else:
-            self.output_entry = ttk.Entry(path_frame, width=65)
+        self.output_entry = ttk.Entry(path_frame, width=current_entry_width)
         self.output_entry.grid(row=3, column=0, columnspan=3, padx=10, pady=2, sticky="ew")
 
         # Create a LabelFrame for the conversion options
-        self.conversion_label_text = {"en": "Conversion Options:", "ja": "圧縮方式:"}
-        self.conversion_labelframe = ttk.LabelFrame(conversion_frame, text=self.conversion_label_text[self.language], padding=5)
+        self.conversion_labelframe = ttk.LabelFrame(conversion_frame, text=i18n.t('gui.conversion_options'), padding=5)
         self.conversion_labelframe.grid(row=0, column=0, rowspan=5, sticky="nsew", padx=2, pady=1)
 
         self.conversion_var = tk.StringVar(value="none")
-        self.conversion_text = {
-            "en": ["No Compression", "Convert images to JPEG", "Convert images to grayscale"],
-            "ja": ["圧縮なし", "JPEG画像に変換", "グレースケール画像に変換"],
-        }
+        self.conversion_text_keys = ["no_compression", "convert_to_jpeg", "convert_to_grayscale"]
         self.conversion_value = ["none", "jpeg", "grayscale"]
         self.conversion_radio = []
-        for i, conversion in enumerate(self.conversion_text[self.language]):
+        for i, key in enumerate(self.conversion_text_keys):
             conversion_radio = ttk.Radiobutton(
-                self.conversion_labelframe, text=conversion, variable=self.conversion_var, value=self.conversion_value[i]
+                self.conversion_labelframe, text=i18n.t(f'gui.{key}'), variable=self.conversion_var, value=self.conversion_value[i]
             )
             self.conversion_radio.append(conversion_radio)
             conversion_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
         # Create a LabelFrame for the direction options
-        self.direction_label_text = {"en": "Direction:", "ja": "綴じ方向:"}
-        self.direction_labelframe = ttk.LabelFrame(direction_frame, text=self.direction_label_text[self.language], padding=5)
+        self.direction_labelframe = ttk.LabelFrame(direction_frame, text=i18n.t('gui.direction'), padding=5)
         self.direction_labelframe.grid(row=0, column=0, rowspan=5, sticky="nsew", padx=2, pady=1)
 
         self.direction_var = tk.StringVar(value="R2L")
-        self.direction_text = {
-            "en": ["L2R", "R2L"],
-            "ja": ["左綴じ", "右綴じ"],
-        }
+        self.direction_text_keys = ["l2r", "r2l"]
         self.direction_value = ["L2R", "R2L"]
         self.direction_radio = []
-        for i, direction in enumerate(self.direction_text[self.language]):
+        for i, key in enumerate(self.direction_text_keys):
             direction_radio = ttk.Radiobutton(
-                self.direction_labelframe, text=direction, variable=self.direction_var, value=self.direction_value[i])
+                self.direction_labelframe, text=i18n.t(f'gui.{key}'), variable=self.direction_var, value=self.direction_value[i])
             self.direction_radio.append(direction_radio)
             direction_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
         
         # Create a LabelFrame for the page layout options
-        self.pagelayout_label_text = {"en": "Page Layout:", "ja": "ページレイアウト:"}
-        self.pagelayout_labelframe = ttk.LabelFrame(pagelayout_frame, text=self.pagelayout_label_text[self.language], padding=5)
+        self.pagelayout_labelframe = ttk.LabelFrame(pagelayout_frame, text=i18n.t('gui.page_layout'), padding=5)
         self.pagelayout_labelframe.grid(row=0, column=0, rowspan=10, sticky="nsew", padx=2, pady=1)
 
         self.pagelayout_var = tk.StringVar(value="TwoPageRight")
-        self.pagelayout_text = {
-            "en": ["SinglePage", "OneColumn", "TwoPageLeft", "TwoColumnLeft", "TwoPageRight", "TwoColumnRight"],
-            "ja": ["単一ページ表示", "スクロールを有効にする", "見開きページ表示", "見開きページでスクロール", "見開きページ\n(表紙は単独表示)", "見開きページでスクロール\n(表紙は単独表示)"],
-        }
         self.pagelayout_value = ["SinglePage", "OneColumn", "TwoPageLeft", "TwoColumnLeft", "TwoPageRight", "TwoColumnRight"]
         self.pagelayout_radio = []
-        for i, pagelayout in enumerate(self.pagelayout_text[self.language]):
+        for i, text in enumerate(i18n.t('gui.page_layouts')):
             pagelayout_radio = ttk.Radiobutton(
-                self.pagelayout_labelframe, text=pagelayout, variable=self.pagelayout_var, value=self.pagelayout_value[i]
+                self.pagelayout_labelframe, text=text, variable=self.pagelayout_var, value=self.pagelayout_value[i]
             )
             self.pagelayout_radio.append(pagelayout_radio)
             pagelayout_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
         # Create a LabelFrame for the page mode options
-        self.pagemode_label_text = {"en": "Page Mode:", "ja": "ページモード:"}
-        self.pagemode_labelframe = ttk.LabelFrame(pagemode_frame, text=self.pagemode_label_text[self.language], padding=5)
+        self.pagemode_labelframe = ttk.LabelFrame(pagemode_frame, text=i18n.t('gui.page_mode'), padding=5)
         self.pagemode_labelframe.grid(row=0, column=0, rowspan=10, sticky="nsew", padx=2, pady=1)
 
         self.pagemode_var = tk.StringVar(value="UseNone")
-        self.pagemode_text = {
-            "en": ["UseNone", "UseOutlines", "UseThumbs", "FullScreen", "UseOC", "UseAttachments"],
-            "ja": ["デフォルト表示", "アウトラインパネルを表示", "サムネイルパネルを表示", "フルスクリーンモード", "コンテンツパネルを表示", "添付ファイルパネルを表示"],
-        }
         self.pagemode_value = ["UseNone", "UseOutlines", "UseThumbs", "FullScreen", "UseOC", "UseAttachments"]
         self.pagemode_radio = []
-        for i, pagemode in enumerate(self.pagemode_text[self.language]):
+        for i, text in enumerate(i18n.t('gui.page_modes')):
             pagemode_radio = ttk.Radiobutton(
-                self.pagemode_labelframe, text=pagemode, variable=self.pagemode_var, value=self.pagemode_value[i]
+                self.pagemode_labelframe, text=text, variable=self.pagemode_var, value=self.pagemode_value[i]
             )
             self.pagemode_radio.append(pagemode_radio)
             pagemode_radio.grid(row=i+1, column=0, sticky="nsew", padx=2, pady=1)
 
         # Create a LabelFrame for the metadata options
-        self.metadata_label_text = {"en": "Metadata:", "ja": "メタデータ:"}
-        self.metadata_labelframe = ttk.LabelFrame(metadata_frame, text=self.metadata_label_text[self.language], padding=5)
+        self.metadata_labelframe = ttk.LabelFrame(metadata_frame, text=i18n.t('gui.metadata'), padding=5)
         self.metadata_labelframe.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky="ew")
 
-        self.title_label_text = {"en": "Title:", "ja": "タイトル:"}
-        self.title_label = ttk.Label(self.metadata_labelframe, text=self.title_label_text[self.language])
+        self.title_label = ttk.Label(self.metadata_labelframe, text=i18n.t('gui.title'))
         self.title_label.grid(row=0, column=0, padx=10, pady=2, sticky="w")
-        if self.system == "Windows":
-            self.title_entry = ttk.Entry(self.metadata_labelframe, width=65)
-        else:
-            self.title_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.title_entry = ttk.Entry(self.metadata_labelframe, width=current_meta_entry_width)
         self.title_entry.grid(row=0, column=1, padx=10, pady=2, sticky="w")
 
-        self.author_label_text = {"en": "Author:", "ja": "作成者:"}
-        self.author_label = ttk.Label(self.metadata_labelframe, text=self.author_label_text[self.language])
+        self.author_label = ttk.Label(self.metadata_labelframe, text=i18n.t('gui.author'))
         self.author_label.grid(row=1, column=0, padx=10, pady=2, sticky="w")
-        if self.system == "Windows":
-            self.author_entry = ttk.Entry(self.metadata_labelframe, width=65)
-        else:
-            self.author_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.author_entry = ttk.Entry(self.metadata_labelframe, width=current_meta_entry_width)
         self.author_entry.grid(row=1, column=1, padx=10, pady=2, sticky="w")
 
-        self.publisher_label_text = {"en": "Publisher:", "ja": "出版社:"}
-        self.publisher_label = ttk.Label(self.metadata_labelframe, text=self.publisher_label_text[self.language])
+        self.publisher_label = ttk.Label(self.metadata_labelframe, text=i18n.t('gui.publisher'))
         self.publisher_label.grid(row=2, column=0, padx=10, pady=2, sticky="w")
-        if self.system == "Windows":
-            self.publisher_entry = ttk.Entry(self.metadata_labelframe, width=65)
-        else:
-            self.publisher_entry = ttk.Entry(self.metadata_labelframe, width=50)
+        self.publisher_entry = ttk.Entry(self.metadata_labelframe, width=current_meta_entry_width)
         self.publisher_entry.grid(row=2, column=1, padx=10, pady=2, sticky="w")
 
-        self.creation_date_label_text = {"en": "Create Date:", "ja": "作成日:"}
-        self.creation_date_label = ttk.Label(self.metadata_labelframe, text=self.creation_date_label_text[self.language])
+        self.creation_date_label = ttk.Label(self.metadata_labelframe, text=i18n.t('gui.create_date'))
         self.creation_date_label.grid(row=3, column=0, padx=10, pady=2, sticky="w")
         creation_date_frame = ttk.Frame(self.metadata_labelframe)
         creation_date_frame.grid(row=3, column=1, columnspan=2, padx=10, pady=2, sticky="w")
@@ -282,14 +258,12 @@ class MangaPdfConverterGUI:
         self.creation_time_combobox.pack(side="left", padx=5)
         self.ctime_var = tk.BooleanVar()
         self.ctime_var.set(True)
-        self.ctime_label_text = {"en": "Sync File Timestamp", "ja": "ファイルのタイムスタンプ変更"}
-        self.ctime_check_box = ttk.Checkbutton(creation_date_frame, text=self.ctime_label_text[self.language], variable=self.ctime_var)        
+        self.ctime_check_box = ttk.Checkbutton(creation_date_frame, text=i18n.t('gui.sync_file_timestamp'), variable=self.ctime_var)        
         self.ctime_check_box.pack(side="left", padx=5)
         if self.system not in ["Windows", "Darwin"]:
             self.ctime_check_box.configure(state=tk.DISABLED)
 
-        self.modify_date_label_text = {"en": "Modify Date:", "ja": "更新日:"}
-        self.modify_date_label = ttk.Label(self.metadata_labelframe, text=self.modify_date_label_text[self.language])
+        self.modify_date_label = ttk.Label(self.metadata_labelframe, text=i18n.t('gui.modify_date'))
         self.modify_date_label.grid(row=4, column=0, padx=10, pady=2, sticky="w")
         modify_date_frame = ttk.Frame(self.metadata_labelframe)
         modify_date_frame.grid(row=4, column=1, columnspan=2, padx=10, pady=2, sticky="w")
@@ -300,8 +274,7 @@ class MangaPdfConverterGUI:
         self.modify_time_combobox.pack(side="left", padx=5)
         self.mtime_var = tk.BooleanVar()
         self.mtime_var.set(True)
-        self.mtime_label_text = {"en": "Sync File Timestamp", "ja": "ファイルのタイムスタンプ変更"}
-        self.mtime_check_box = ttk.Checkbutton(modify_date_frame, text=self.mtime_label_text[self.language], variable=self.mtime_var)        
+        self.mtime_check_box = ttk.Checkbutton(modify_date_frame, text=i18n.t('gui.sync_file_timestamp'), variable=self.mtime_var)        
         self.mtime_check_box.pack(side="left", padx=5)
 
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -312,18 +285,25 @@ class MangaPdfConverterGUI:
         self.modify_time_combobox.set(current_time)
 
         # Add language toggle button
-        self.language_button_text = {"en": "日本語表示に切替", "ja": "Display in English"}
-        self.language_button = ttk.Button(button_frame, text=self.language_button_text[self.language], command=self.toggle_language)
-        self.language_button.pack(side="left", padx=15, pady=5)
+        self.language_label = ttk.Label(button_frame, text="Language:")
+        self.language_label.pack(side="left", padx=(15, 5), pady=5)
+        self.language_var = tk.StringVar()
+        self.language_combobox = ttk.Combobox(button_frame, textvariable=self.language_var, state='readonly', width=12)
+        
+        self.language_combobox['values'] = list(self.lang_map.keys())
+
+        current_lang_name = self.rev_lang_map.get(i18n.get('locale'), 'English')
+        self.language_combobox.set(current_lang_name)
+        
+        self.language_combobox.pack(side="left", padx=5, pady=5)
+        self.language_combobox.bind('<<ComboboxSelected>>', self.change_language)
 
         # Add quit button
-        self.quit_button_text = {"en": "Quit", "ja": "終了"}
-        self.quit_button = ttk.Button(button_frame, text=self.quit_button_text[self.language], command=sys.exit)
+        self.quit_button = ttk.Button(button_frame, text=i18n.t('gui.quit'), command=sys.exit)
         self.quit_button.pack(side="left", padx=15, pady=5)
 
         # Add convert button
-        self.convert_button_text = {"en": "Convert", "ja": "変換"}
-        self.convert_button = ttk.Button(button_frame, text=self.convert_button_text[self.language], command=self.run_convert)
+        self.convert_button = ttk.Button(button_frame, text=i18n.t('gui.convert'), command=self.run_convert)
         self.convert_button.pack(side="right", padx=15, pady=5)
 
         # Add padding to all widgets
@@ -335,6 +315,24 @@ class MangaPdfConverterGUI:
 
         # Center the window
         master.eval('tk::PlaceWindow . center')
+
+    def setup_i18n(self):
+        i18n.load_path.append(os.path.join(os.path.dirname(__file__), 'locales'))
+        i18n.set('file_format', 'yml')
+        i18n.set('filename_format', '{locale}.{format}')
+        i18n.set('skip_locale_root_data', True)
+        i18n.set('fallback', 'en_US')
+        
+        locale = 'en_US'
+        try:
+            with open('config.json', 'r') as f:
+                config = json.load(f)
+                config_locale = config.get('language')
+                if config_locale in self.lang_map.values():
+                    locale = config_locale
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        i18n.set('locale', locale)
 
     def select_date(self, combobox, root):
         def date_callback(selected_date):
@@ -353,50 +351,72 @@ class MangaPdfConverterGUI:
         time_combobox = ttk.Combobox(frame, values=time_values, width=8)
         return time_combobox
 
-    def toggle_language(self):
-        # Toggle the language between english and japanese
-        if self.language == "en":
-            self.language = "ja"
-            self.language_button.configure(text="Display in English")
-        else:
-            self.language = "en"
-            self.language_button.configure(text="日本語表示に切替")
-        self.update_language()
+    def change_language(self, event=None):
+        selected_language = self.language_var.get()
+        locale = self.lang_map.get(selected_language)
+        if locale and locale != i18n.get('locale'):
+            i18n.set('locale', locale)
+            try:
+                with open('config.json', 'w') as f:
+                    json.dump({'language': locale}, f)
+            except IOError:
+                print("Error: Could not write to config.json")
+            self.update_language()
 
     def update_language(self):
-        self.input_file_button.configure(text=self.input_file_button_text[self.language])
-        self.input_directory_button.configure(text=self.input_directory_button_text[self.language])
-        self.input_label.configure(text=self.input_label_text[self.language])
-        self.output_label.configure(text=self.output_label_text[self.language])
-        self.output_browse_button.configure(text=self.output_browse_button_text[self.language])
-        self.auto_output_button.configure(text=self.auto_output_button_text[self.language])
-        self.conversion_labelframe.configure(text=self.conversion_label_text[self.language])
-        for i, conversion in enumerate(self.conversion_text[self.language]):
-            self.conversion_radio[i].configure(text=conversion)
-        self.conversion_var.set(self.conversion_var.get())
-        self.direction_labelframe.configure(text=self.direction_label_text[self.language])
-        for i, direction in enumerate(self.direction_text[self.language]):
-            self.direction_radio[i].configure(text=direction)
-        self.direction_var.set(self.direction_var.get())
-        self.pagelayout_labelframe.configure(text=self.pagelayout_label_text[self.language])
-        for i, pagelayout in enumerate(self.pagelayout_text[self.language]):
-            self.pagelayout_radio[i].configure(text=pagelayout)
-        self.pagemode_var.set(self.pagemode_var.get())
-        self.pagemode_labelframe.configure(text=self.pagemode_label_text[self.language])
-        for i, pagemode in enumerate(self.pagemode_text[self.language]):
-            self.pagemode_radio[i].configure(text=pagemode)
-        self.pagelayout_var.set(self.pagelayout_var.get())
-        self.metadata_labelframe.configure(text=self.metadata_label_text[self.language])
-        self.title_label.configure(text=self.title_label_text[self.language])
-        self.author_label.configure(text=self.author_label_text[self.language])
-        self.publisher_label.configure(text=self.publisher_label_text[self.language])
-        self.creation_date_label.configure(text=self.creation_date_label_text[self.language])
-        self.ctime_check_box.configure(text=self.ctime_label_text[self.language])
-        self.modify_date_label.configure(text=self.modify_date_label_text[self.language])
-        self.mtime_check_box.configure(text=self.mtime_label_text[self.language])
-        self.language_button.configure(text=self.language_button_text[self.language])
-        self.convert_button.configure(text=self.convert_button_text[self.language])
-        self.quit_button.configure(text=self.quit_button_text[self.language])
+        locale = i18n.get('locale')
+        
+        entry_width = self.long_entry_width if locale in self.long_languages else self.default_entry_width
+        self.input_entry.configure(width=entry_width)
+        self.output_entry.configure(width=entry_width)
+
+        meta_entry_width = self.long_meta_entry_width if locale in self.long_languages else self.default_meta_entry_width
+        self.title_entry.configure(width=meta_entry_width)
+        self.author_entry.configure(width=meta_entry_width)
+        self.publisher_entry.configure(width=meta_entry_width)
+        
+        # Update buttons and labels
+        self.input_label.configure(text=i18n.t('gui.input_path'))
+        self.input_file_button.configure(text=i18n.t('gui.select_file'))
+        self.input_directory_button.configure(text=i18n.t('gui.select_directory'))
+        self.output_label.configure(text=i18n.t('gui.output_path'))
+        self.output_browse_button.configure(text=i18n.t('gui.browse'))
+        self.auto_output_button.configure(text=i18n.t('gui.auto'))
+        
+        # Update conversion options
+        self.conversion_labelframe.configure(text=i18n.t('gui.conversion_options'))
+        for i, key in enumerate(self.conversion_text_keys):
+            self.conversion_radio[i].configure(text=i18n.t(f'gui.{key}'))
+        
+        # Update direction options
+        self.direction_labelframe.configure(text=i18n.t('gui.direction'))
+        for i, key in enumerate(self.direction_text_keys):
+            self.direction_radio[i].configure(text=i18n.t(f'gui.{key}'))
+
+        # Update page layout options
+        self.pagelayout_labelframe.configure(text=i18n.t('gui.page_layout'))
+        for i, text in enumerate(i18n.t('gui.page_layouts')):
+            self.pagelayout_radio[i].configure(text=text)
+
+        # Update page mode options
+        self.pagemode_labelframe.configure(text=i18n.t('gui.page_mode'))
+        for i, text in enumerate(i18n.t('gui.page_modes')):
+            self.pagemode_radio[i].configure(text=text)
+
+        # Update metadata labels
+        self.metadata_labelframe.configure(text=i18n.t('gui.metadata'))
+        self.title_label.configure(text=i18n.t('gui.title'))
+        self.author_label.configure(text=i18n.t('gui.author'))
+        self.publisher_label.configure(text=i18n.t('gui.publisher'))
+        self.creation_date_label.configure(text=i18n.t('gui.create_date'))
+        self.ctime_check_box.configure(text=i18n.t('gui.sync_file_timestamp'))
+        self.modify_date_label.configure(text=i18n.t('gui.modify_date'))
+        self.mtime_check_box.configure(text=i18n.t('gui.sync_file_timestamp'))
+
+        # Update main buttons
+        self.language_label.configure(text=i18n.t('gui.language'))
+        self.convert_button.configure(text=i18n.t('gui.convert'))
+        self.quit_button.configure(text=i18n.t('gui.quit'))
 
     def set_output_path(self, path):
         self.output_path = path
@@ -459,7 +479,7 @@ class MangaPdfConverterGUI:
 
         # Notify user if no input path is provided
         if input_path == "":
-            messagebox.showerror("Error", "Please select an input path first.", parent=self.master)
+            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.error_no_input_path'), parent=self.master)
             return
 
         # Get output path
@@ -483,7 +503,7 @@ class MangaPdfConverterGUI:
                 self.output_entry.delete(0, tk.END)
                 self.output_entry.insert(0, output_path)
             else:
-                messagebox.showerror("Error", "Output path is not a PDF file", parent=self.master)
+                messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.error_output_not_pdf'), parent=self.master)
                 return
 
         # Set the output path and filename
@@ -530,7 +550,7 @@ class MangaPdfConverterGUI:
 
         # Check if input path is empty
         if not input_path:
-            messagebox.showerror("Error", "Please specify an input path.", parent=self.master)
+            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.please_specify_input'), parent=self.master)
             return
 
         # Determine the output path if it is not specified
@@ -543,7 +563,7 @@ class MangaPdfConverterGUI:
 
         # Notify user if no output path is provided
         if not output_path:
-            messagebox.showerror("Error", "Please specify an output path.", parent=self.master)
+            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.please_specify_output'), parent=self.master)
             return
         
         # Determine the conversion options
@@ -555,12 +575,10 @@ class MangaPdfConverterGUI:
             converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
 
             # Ask user if they want to convert
-            confirm_text = {"en": "Are you sure you want to convert?", "ja": "変換処理を開始しますか？"}
-            answer = messagebox.askyesno("Confirm Conversion", confirm_text[self.language], parent=self.master)
+            answer = messagebox.askyesno(i18n.t('gui.confirm_conversion'), i18n.t('gui.are_you_sure'), parent=self.master)
 
             if not answer:
-                cancele_text = {"en": "Conversion canceled.", "ja": "変換処理を中止しました"}
-                messagebox.showinfo("Conversion", cancele_text[self.language], parent=self.master)
+                messagebox.showinfo(i18n.t('gui.conversion'), i18n.t('gui.conversion_canceled'), parent=self.master)
                 return
             
             # Create "Processing..." window
@@ -569,7 +587,10 @@ class MangaPdfConverterGUI:
             main_x, main_y = self.master.winfo_x(), self.master.winfo_y()
             main_width, main_height = self.master.winfo_width(), self.master.winfo_height()
             # Calculate the position of the processing window
-            sub_width, sub_height = 250, 30
+            if self.system == "Windows":
+                sub_width, sub_height = 350, 80
+            else:
+                sub_width, sub_height = 250, 30
             sub_x = main_x + (main_width - sub_width) // 2
             sub_y = main_y + (main_height - sub_height) // 2
             processing_window.geometry(f"{sub_width}x{sub_height}+{sub_x}+{sub_y}")
@@ -578,9 +599,8 @@ class MangaPdfConverterGUI:
             # Set the parent of the processing window
             processing_window.transient(self.master)
             # Add widgets to the frame
-            processing_text = {"en": "Processing...", "ja": "変換処理中..."}
-            processing_label = tk.Label(processing_window, text=processing_text[self.language])
-            processing_label.pack()
+            processing_label = tk.Label(processing_window, text=i18n.t('gui.processing'), anchor='center')
+            processing_label.pack(expand=True, fill='both')
 
             # Disable main window while process window is open
             #self.master.withdraw()
@@ -612,23 +632,30 @@ class MangaPdfConverterGUI:
 
             # Check if output file was created
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                complete_success_text = {"en": "Conversion complete!", "ja": "変換処理が完了しました！"}
-                messagebox.showinfo("Success", complete_success_text[self.language], parent=self.master)
+                messagebox.showinfo(i18n.t('gui.success'), i18n.t('gui.conversion_complete'), parent=self.master)
             else:
-                complete_error_text = {"en": "Conversion failed", "ja": "変換処理に失敗しました"}
-                messagebox.showerror("Error", complete_error_text[self.language], parent=self.master)
+                messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.conversion_failed'), parent=self.master)
 
         except Exception as e:
             # Close process window when done
             processing_window.grab_release()
             processing_window.destroy()
-            complete_error_text = {"en": "Conversion failed", "ja": "エラーで変換処理に失敗しました"}
-            messagebox.showerror(title="Error", message=f"{complete_error_text[self.language]}\n{str(e)}", parent=self.master)
+            messagebox.showerror(title=i18n.t('gui.error'), message=f"{i18n.t('gui.conversion_failed_with_error')}\n{str(e)}", parent=self.master)
 
             # Re-enable main window
             self.master.deiconify()
 
 def launch_gui():
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except (ImportError, AttributeError):
+            try:
+                import ctypes
+                ctypes.windll.user32.SetProcessDPIAware()
+            except (ImportError, AttributeError):
+                pass
     root = tk.Tk()
     MangaPdfConverterGUI(root)
     root.mainloop()

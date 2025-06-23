@@ -1,26 +1,28 @@
 from setuptools import setup, find_packages
 
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 
 install_requires = [
     "lxml",
-    "mobi",
     "numpy",
     "img2pdf",
     "Pillow",
     "pikepdf",
-    "rarfile"
+    "rarfile",
+    "i18nice[YAML]"
 ]
 
 extras_require = {
     'windows': ["win32_setctime"]
 }
 
-CLASSIFIERS=[
+CLASSIFIERS = [
     'License :: OSI Approved :: MIT License',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11'
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13'
 ]
 
 setup(
@@ -34,14 +36,17 @@ setup(
     url="https://github.com/mashu3/manga2pdf",
     license="MIT",
     package_dir={"": "src"},
-    py_modules=["manga2pdf", "manga2pdf_gui"],
-    packages = find_packages("src"),
+    packages=find_packages(where="src"),
+    package_data={
+        "manga2pdf": ["locales/*.yml"]
+    },
+    include_package_data=True,
     classifiers=CLASSIFIERS,
     install_requires=install_requires,
     extras_require=extras_require,
     entry_points={
         "console_scripts": [
-            "manga2pdf=manga2pdf:main",
+            "manga2pdf=manga2pdf.manga2pdf:main",
         ]
     }
 )

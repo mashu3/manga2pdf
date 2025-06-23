@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 mashu3
+# Copyright (c) 2025 mashu3
 # This software is released under the MIT License, see LICENSE.
 
 import io
@@ -366,7 +366,7 @@ L2R -> Left Binding
 
     args = parser.parse_args()
     if args.gui:
-        import manga2pdf_gui
+        from . import manga2pdf_gui
         manga2pdf_gui.launch_gui()
     else:
         if args.input_path is None:
