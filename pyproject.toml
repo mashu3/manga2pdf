@@ -41,12 +41,10 @@ manga2pdf = "manga2pdf.manga2pdf:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+include-package-data = true 
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-manga2pdf = ["locales/*.yml"]
-
-[tool.setuptools]
-include-package-data = true 
+manga2pdf = ["locales/*.yml"] 
