@@ -6,19 +6,23 @@ import io
 import os
 import re
 import sys
+import py7zr
 import img2pdf
 import pikepdf
-import tempfile
+import tarfile
 import rarfile
 import zipfile
 import argparse
+import tempfile
 import warnings
 import numpy as np
 from PIL import Image
 from lxml import etree
 import concurrent.futures
+
 warnings.filterwarnings('ignore', category=UserWarning)
 
+__version__ = "0.3.0"
 
 class MangaPdfConverter():   
     def __init__(self, input_path: str, output_path: str, pagelayout:str, pagemode:str, direction:str):
@@ -46,7 +50,7 @@ class MangaPdfConverter():
     # Function to determine whether the given path is an archive file or not
     def is_archive_file(self, path):
         ext = os.path.splitext(path)[1].lower()
-        return ext in ['.zip', '.cbz', '.rar', '.cbr']
+        return ext in ['.zip', '.cbz', '.rar', '.cbr', '.7z', '.cb7', '.tar', '.cbt']
     
     # Function to generate sort keys
     def sort_key(self, filename):
@@ -76,7 +80,7 @@ class MangaPdfConverter():
                 for file in files:
                     if self.is_image_file(file):
                         img_files.append(os.path.join(root, file))
-        # If the input_path is a zip, cbz, rar, or cbr file
+        # If the input_path is a zip, cbz, rar, cbr, 7z, cb7, tar, or cbt file
         elif self.is_archive_file(input_path):
             ext = os.path.splitext(input_path)[1].lower()
             if ext in ['.zip', '.cbz']:
@@ -87,6 +91,12 @@ class MangaPdfConverter():
                 if rarfile.is_rarfile(input_path):
                     with rarfile.RarFile(input_path) as archive:
                         archive.extractall(tmp_dir)
+            elif ext in ['.7z', '.cb7']:
+                with py7zr.SevenZipFile(input_path, mode='r') as archive:
+                    archive.extractall(tmp_dir)
+            elif ext in ['.tar', '.cbt']:
+                with tarfile.open(input_path, 'r') as archive:
+                    archive.extractall(tmp_dir)
             for root, _, files in os.walk(tmp_dir):
                 for file in files:
                     if self.is_image_file(file):
@@ -302,7 +312,7 @@ class MangaPdfConverter():
                     pdf.Root.PageLayout = pikepdf.Name('/' + self.pagelayout)
             if self.pagemode is not None:
                 if not hasattr(pdf.Root, 'PageMode') \
-                or pdf.Root.PageMode != '/' + self.pagemodet:
+                or pdf.Root.PageMode != '/' + self.pagemode:
                     pdf.Root.PageMode = pikepdf.Name('/' + self.pagemode)
             if self.direction is not None:
                 if not hasattr(pdf.Root, 'ViewerPreferences'):
@@ -363,6 +373,8 @@ L2R -> Left Binding
     parser.add_argument('-j', '--jpeg', action='store_true', help='Convert images to JPEG')
     parser.add_argument('-g', '--grayscale', action='store_true', help='Convert images to grayscale')
     parser.add_argument('-gui', action='store_true', help='Launch GUI')
+    parser.add_argument('--version', action='version', version=f'manga2pdf {__version__}',
+                        help='show version information and exit')
 
     args = parser.parse_args()
     if args.gui:
@@ -375,8 +387,8 @@ L2R -> Left Binding
             sys.exit(1)
         if not os.path.isdir(args.input_path):
             ext = os.path.splitext(args.input_path)[1].lower()
-            if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.epub']:
-                print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, and .epub.')
+            if not ext in ['.zip', '.cbz', '.rar', '.cbr', '.7z', '.cb7', '.tar', '.cbt', '.epub']:
+                print('Error: The input file format is not supported. The currently supported formats are: .zip, .cbz, .rar, .cbr, .7z, .cb7, .tar, .cbt, and .epub.')
                 sys.exit(1)
         if args.output_path is not None:
             if not args.output_path.endswith('.pdf'):

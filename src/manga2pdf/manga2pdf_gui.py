@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-from .manga2pdf import MangaPdfConverter
+from .manga2pdf import MangaPdfConverter, __version__
 
 class CalendarWidget(tk.Toplevel):
     def __init__(self, master=None, callback=None, x=0, y=0, **kw):
@@ -109,7 +109,7 @@ class MangaPdfConverterGUI:
         self.lang_map = {'English': 'en_US', '日本語': 'ja_JP', 'Français': 'fr_FR', 'Español': 'es_ES', 'Deutsch': 'de_DE', '简体中文': 'zh_CN', '繁體中文': 'zh_TW'}
         self.rev_lang_map = {v: k for k, v in self.lang_map.items()}
         self.setup_i18n()
-        master.title("Manga PDF Converter")
+        master.title(f"Manga PDF Converter v{__version__}")
         self.master.resizable(0, 0)
         self.processing_window = None
         self.system = platform.system()
@@ -429,7 +429,18 @@ class MangaPdfConverterGUI:
             self.set_output_path(path)
 
     def browse_input_file(self):
-        filetypes = (("zip files", "*.zip"), ("cbz files", "*.cbz"), ("rar files", "*.rar"), ("cbr files", "*.cbr"), ("epub files", "*.epub"), ("mobi files", "*.mobi"), ("azw files", "*.azw3"), ("azw files", "*.azw"), ("all files", "*.*"))
+        filetypes = (
+            ("zip files", "*.zip"),
+            ("cbz files", "*.cbz"),
+            ("rar files", "*.rar"),
+            ("cbr files", "*.cbr"),
+            ("7z files", "*.7z"),
+            ("cb7 files", "*.cb7"),
+            ("tar files", "*.tar"),
+            ("cbt files", "*.cbt"),
+            ("epub files", "*.epub"),
+            ("all files", "*.*"),
+        )
         path = filedialog.askopenfilename(filetypes=filetypes)
 
         self.title_entry.delete(0, tk.END)
@@ -595,7 +606,7 @@ class MangaPdfConverterGUI:
             sub_y = main_y + (main_height - sub_height) // 2
             processing_window.geometry(f"{sub_width}x{sub_height}+{sub_x}+{sub_y}")
             # Set the title of the window
-            processing_window.title("Manga PDF Converter")
+            processing_window.title(f"Manga PDF Converter v{__version__}")
             # Set the parent of the processing window
             processing_window.transient(self.master)
             # Add widgets to the frame

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "manga2pdf"
+version = "0.3.0"
+description = "Convert manga/comic files(zip, epub, etc.) or directory containing image files (jpg, png, etc.) to PDF."
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+authors = [
+  { name = "mashu3" }
+]
+keywords = ["manga", "comic", "pdf", "converter"]
+urls = { Homepage = "https://github.com/mashu3/manga2pdf" }
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13"
+]
+dependencies = [
+  "lxml",
+  "numpy",
+  "img2pdf",
+  "Pillow",
+  "pikepdf",
+  "rarfile",
+  "py7zr",
+  "i18nice[YAML]"
+]
+
+[project.optional-dependencies]
+windows = ["win32_setctime"]
+
+[project.scripts]
+manga2pdf = "manga2pdf.manga2pdf:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+manga2pdf = ["locales/*.yml"]
+
+[tool.setuptools]
+include-package-data = true 
