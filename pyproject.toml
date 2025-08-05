@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "manga2pdf"
-version = "0.3.0"
+version = "0.3.1"
 description = "Convert manga/comic files(zip, epub, etc.) or directory containing image files (jpg, png, etc.) to PDF."
 readme = "README.md"
 requires-python = ">=3.7"
@@ -30,7 +30,8 @@ dependencies = [
   "pikepdf",
   "rarfile",
   "py7zr",
-  "i18nice[YAML]"
+  "i18nice[YAML]",
+  "tkface"
 ]
 
 [project.optional-dependencies]

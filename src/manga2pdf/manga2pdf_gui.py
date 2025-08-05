@@ -6,6 +6,7 @@ import os
 import sys
 import i18n
 import json
+import tkface
 import pikepdf
 import zipfile
 import datetime
@@ -14,94 +15,8 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
-from tkinter import messagebox
 from .manga2pdf import MangaPdfConverter, __version__
 
-class CalendarWidget(tk.Toplevel):
-    def __init__(self, master=None, callback=None, x=0, y=0, **kw):
-        super().__init__(master, **kw)
-        self.title(i18n.t('gui.calendar'))
-        self.attributes('-topmost', True)
-        self.callback = callback
-        self.geometry(f"+{x}+{y}")
-        self.current_date = datetime.datetime.now()
-        self.create_widgets()
-
-    def create_widgets(self):
-        self.frame_top = tk.Frame(self)
-        self.frame_top.pack(pady=1)
-        self.prev_year_btn = tk.Button(self.frame_top, text="<", font=("", 10), command=self.prev_year, relief="flat", repeatdelay=100, repeatinterval=300)
-        self.prev_year_btn.pack(side="left", padx=1)
-        self.label_year = tk.Label(self.frame_top, text=self.current_date.year, font=("", 10))
-        self.label_year.pack(side="left")
-        self.next_year_btn = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_year, relief="flat", repeatdelay=100, repeatinterval=300)
-        self.next_year_btn.pack(side="left", padx=1)
-        self.previous_month = tk.Button(self.frame_top, text="<", font=("", 10), command=self.prev_month, relief="flat", repeatdelay=100, repeatinterval=300)
-        self.previous_month.pack(side="left", padx=1)
-        self.label_month = tk.Label(self.frame_top, text=i18n.t(f"gui.months")[self.current_date.month-1], font=("", 10))
-        self.label_month.pack(side="left", padx=1)
-        self.next_month_btn = tk.Button(self.frame_top, text=">", font=("", 10), command=self.next_month, relief="flat", repeatdelay=100, repeatinterval=300)
-        self.next_month_btn.pack(side="left", padx=1)
-
-        self.frame_week = tk.Frame(self)
-        self.frame_week.pack()
-
-        days = i18n.t('gui.weekdays_short')
-        colors = ["black", "black", "black", "black", "black", "blue", "red"]
-        for i, (day, color) in enumerate(zip(days, colors)):
-            lbl = tk.Button(self.frame_week, text=day, font=("", 10), disabledforeground=color, state="disabled", height=1, width=1, relief="flat", padx=5, pady=1)
-            lbl.grid(column=i, row=0)
-
-        self.frame_calendar = tk.Frame(self)
-        self.frame_calendar.pack()
-        self.update_calendar()
-
-    def update_calendar(self):
-        for widget in self.frame_calendar.winfo_children():
-            widget.destroy()
-
-        start_date = self.current_date.replace(day=1)
-        if start_date.weekday() != 0:
-            start_date -= datetime.timedelta(days=start_date.weekday())
-        end_date = start_date + datetime.timedelta(weeks=6)
-
-        delta = datetime.timedelta(days=1)
-        current_date = start_date
-
-        row = 0
-        while current_date < end_date:
-            for col in range(7):
-                day = current_date.day
-                btn_state = "disabled" if current_date.month != self.current_date.month else "normal"
-                btn = tk.Button(self.frame_calendar, text=day, font=("", 10), height=1, width=1, relief="flat", state=btn_state, padx=5, pady=1,
-                                command=lambda d=current_date: self.set_date(d))
-                btn.grid(column=col, row=row)
-                current_date += delta
-            row += 1
-
-        self.label_year["text"] = self.current_date.year
-        self.label_month["text"] = i18n.t(f"gui.months")[self.current_date.month-1]
-
-    def set_date(self, date):
-        if self.callback:
-            self.callback(date)
-        self.destroy()
-
-    def prev_month(self):
-        self.current_date -= datetime.timedelta(days=28)
-        self.update_calendar()
-
-    def next_month(self):
-        self.current_date += datetime.timedelta(days=28)
-        self.update_calendar()
-
-    def prev_year(self):
-        self.current_date = datetime.date(self.current_date.year - 1, self.current_date.month, 1)
-        self.update_calendar()
-
-    def next_year(self):
-        self.current_date = datetime.date(self.current_date.year + 1, self.current_date.month, 1)
-        self.update_calendar()
 
 class MangaPdfConverterGUI:
     def __init__(self, master):
@@ -113,6 +28,10 @@ class MangaPdfConverterGUI:
         self.master.resizable(0, 0)
         self.processing_window = None
         self.system = platform.system()
+        
+        # Enable DPI awareness for Windows
+        if self.system == "Windows":
+            tkface.win.dpi(master)
 
         self.long_languages = {'fr', 'de', 'es'}
         if self.system == "Windows":
@@ -251,9 +170,17 @@ class MangaPdfConverterGUI:
         self.creation_date_label.grid(row=3, column=0, padx=10, pady=2, sticky="w")
         creation_date_frame = ttk.Frame(self.metadata_labelframe)
         creation_date_frame.grid(row=3, column=1, columnspan=2, padx=10, pady=2, sticky="w")
-        self.creation_date_combobox = ttk.Combobox(creation_date_frame, width=10)
-        self.creation_date_combobox.bind('<Button-1>', lambda e: self.select_date(self.creation_date_combobox, master))
-        self.creation_date_combobox.pack(side="left")
+        
+        # Use DateEntry widget
+        current_date = datetime.datetime.now()
+        self.creation_date_entry = tkface.DateEntry(
+            creation_date_frame,
+            year=current_date.year,
+            month=current_date.month,
+            language="ja" if i18n.get('locale') == 'ja_JP' else "en"
+        )
+        self.creation_date_entry.pack(side="left")
+        
         self.creation_time_combobox = self.create_time_combobox(creation_date_frame)
         self.creation_time_combobox.pack(side="left", padx=5)
         self.ctime_var = tk.BooleanVar()
@@ -267,9 +194,16 @@ class MangaPdfConverterGUI:
         self.modify_date_label.grid(row=4, column=0, padx=10, pady=2, sticky="w")
         modify_date_frame = ttk.Frame(self.metadata_labelframe)
         modify_date_frame.grid(row=4, column=1, columnspan=2, padx=10, pady=2, sticky="w")
-        self.modify_date_combobox = ttk.Combobox(modify_date_frame, width=10)
-        self.modify_date_combobox.bind('<Button-1>', lambda e: self.select_date(self.modify_date_combobox, master))
-        self.modify_date_combobox.pack(side="left")
+        
+        # Use DateEntry widget
+        self.modify_date_entry = tkface.DateEntry(
+            modify_date_frame,
+            year=current_date.year,
+            month=current_date.month,
+            language="ja" if i18n.get('locale') == 'ja_JP' else "en"
+        )
+        self.modify_date_entry.pack(side="left")
+        
         self.modify_time_combobox = self.create_time_combobox(modify_date_frame)
         self.modify_time_combobox.pack(side="left", padx=5)
         self.mtime_var = tk.BooleanVar()
@@ -277,11 +211,8 @@ class MangaPdfConverterGUI:
         self.mtime_check_box = ttk.Checkbutton(modify_date_frame, text=i18n.t('gui.sync_file_timestamp'), variable=self.mtime_var)        
         self.mtime_check_box.pack(side="left", padx=5)
 
-        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        self.creation_date_combobox.set(current_date)
         self.creation_time_combobox.set(current_time)
-        self.modify_date_combobox.set(current_date)
         self.modify_time_combobox.set(current_time)
 
         # Add language toggle button
@@ -334,15 +265,7 @@ class MangaPdfConverterGUI:
             pass
         i18n.set('locale', locale)
 
-    def select_date(self, combobox, root):
-        def date_callback(selected_date):
-            combobox.delete(0, tk.END)
-            combobox.insert(0, selected_date.strftime("%Y-%m-%d"))
-            combobox.set(selected_date.strftime("%Y-%m-%d"))
 
-        x = combobox.winfo_rootx()
-        y = combobox.winfo_rooty() + combobox.winfo_height()
-        CalendarWidget(master=root, callback=date_callback, x=x, y=y)
         
     def create_time_combobox(self, frame):
         hours = [f"{h:02d}" for h in range(24)]
@@ -446,11 +369,10 @@ class MangaPdfConverterGUI:
         self.title_entry.delete(0, tk.END)
         self.author_entry.delete(0, tk.END)
         self.publisher_entry.delete(0, tk.END)
-        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        current_date = datetime.datetime.now()
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        self.creation_date_combobox.set(current_date)
+        # DateEntryは自動的に現在の日付が設定されるので、時間のみ設定
         self.creation_time_combobox.set(current_time)
-        self.modify_date_combobox.set(current_date)
         self.modify_time_combobox.set(current_time)
 
         if path:
@@ -471,7 +393,13 @@ class MangaPdfConverterGUI:
                     self.publisher_entry.delete(0, tk.END)
                     self.publisher_entry.insert(0, epub_metadata['publisher'])
                     if epub_metadata['date']:
-                        self.creation_date_combobox.set(epub_metadata['date'])
+                        # EPUBの日付をDateEntryに設定
+                        try:
+                            epub_date = datetime.datetime.strptime(epub_metadata['date'], "%Y-%m-%d")
+                            self.creation_date_entry.set_selected_date(epub_date.date())
+                        except (ValueError, AttributeError):
+                            # 日付形式が異なる場合やDateEntryが初期化されていない場合は無視
+                            pass
             #print(pdf_metadata)
 
     def browse_input_directory(self):
@@ -490,7 +418,7 @@ class MangaPdfConverterGUI:
 
         # Notify user if no input path is provided
         if input_path == "":
-            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.error_no_input_path'), parent=self.master)
+            tkface.messagebox.showerror(master=self.master, message=i18n.t('gui.error_no_input_path'), title=i18n.t('gui.error'))
             return
 
         # Get output path
@@ -514,7 +442,7 @@ class MangaPdfConverterGUI:
                 self.output_entry.delete(0, tk.END)
                 self.output_entry.insert(0, output_path)
             else:
-                messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.error_output_not_pdf'), parent=self.master)
+                tkface.messagebox.showerror(master=self.master, message=i18n.t('gui.error_output_not_pdf'), title=i18n.t('gui.error'))
                 return
 
         # Set the output path and filename
@@ -526,8 +454,16 @@ class MangaPdfConverterGUI:
                 pdf_metadata['dc:title'] = self.title_entry.get() if self.title_entry.get() else ''
                 pdf_metadata['dc:creator'] = [self.author_entry.get() if self.author_entry.get() else '']
                 pdf_metadata['dc:publisher'] = self.publisher_entry.get() if self.publisher_entry.get() else ''
-                pdf_metadata['xmp:CreateDate'] = f"{self.creation_date_combobox.get()} {self.creation_time_combobox.get()}"
-                pdf_metadata['xmp:ModifyDate'] = f"{self.modify_date_combobox.get()} {self.modify_time_combobox.get()}"
+                creation_date_obj = self.creation_date_entry.get_date()
+                if creation_date_obj is None:
+                    creation_date_obj = datetime.datetime.now().date()
+                creation_date = creation_date_obj.strftime("%Y-%m-%d")
+                modify_date_obj = self.modify_date_entry.get_date()
+                if modify_date_obj is None:
+                    modify_date_obj = datetime.datetime.now().date()
+                modify_date = modify_date_obj.strftime("%Y-%m-%d")
+                pdf_metadata['xmp:CreateDate'] = f"{creation_date} {self.creation_time_combobox.get()}"
+                pdf_metadata['xmp:ModifyDate'] = f"{modify_date} {self.modify_time_combobox.get()}"
                 pdf_metadata['pdf:Producer'] = ''
             pdf.save(output_path, linearize=True)
 
@@ -535,10 +471,18 @@ class MangaPdfConverterGUI:
         if self.ctime_var.get():
            if self.system == "Windows":
                 import win32_setctime
-                ctime_new = datetime.datetime.strptime(f"{self.creation_date_combobox.get()} {self.creation_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
+                creation_date_obj = self.creation_date_entry.get_date()
+                if creation_date_obj is None:
+                    creation_date_obj = datetime.datetime.now().date()
+                creation_date = creation_date_obj.strftime("%Y-%m-%d")
+                ctime_new = datetime.datetime.strptime(f"{creation_date} {self.creation_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
                 win32_setctime.setctime(output_path, ctime_new.timestamp())
            elif self.system == "Darwin":
-                date_object = datetime.datetime.strptime(self.creation_date_combobox.get(), "%Y-%m-%d")
+                creation_date_obj = self.creation_date_entry.get_date()
+                if creation_date_obj is None:
+                    creation_date_obj = datetime.datetime.now().date()
+                creation_date = creation_date_obj.strftime("%Y-%m-%d")
+                date_object = datetime.datetime.strptime(creation_date, "%Y-%m-%d")
                 formatted_date = date_object.strftime("%m/%d/%Y")
                 command = ["SetFile", "-d", f"{formatted_date} {self.creation_time_combobox.get()}", output_path]
                 try:
@@ -550,7 +494,11 @@ class MangaPdfConverterGUI:
            else:
                 print("Error: Unable to modify 'ctime' in Linux environment")
 
-        mtime_new = datetime.datetime.strptime(f"{self.modify_date_combobox.get()} {self.modify_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
+        modify_date_obj = self.modify_date_entry.get_date()
+        if modify_date_obj is None:
+            modify_date_obj = datetime.datetime.now().date()
+        modify_date = modify_date_obj.strftime("%Y-%m-%d")
+        mtime_new = datetime.datetime.strptime(f"{modify_date} {self.modify_time_combobox.get()}", "%Y-%m-%d %H:%M:%S")
         if self.mtime_var.get():
             os.utime(path=output_path, times=(mtime_new.timestamp(), mtime_new.timestamp()))
 
@@ -561,7 +509,7 @@ class MangaPdfConverterGUI:
 
         # Check if input path is empty
         if not input_path:
-            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.please_specify_input'), parent=self.master)
+            tkface.messagebox.showerror(master=self.master, message=i18n.t('gui.please_specify_input'), title=i18n.t('gui.error'))
             return
 
         # Determine the output path if it is not specified
@@ -574,7 +522,7 @@ class MangaPdfConverterGUI:
 
         # Notify user if no output path is provided
         if not output_path:
-            messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.please_specify_output'), parent=self.master)
+            tkface.messagebox.showerror(master=self.master, message=i18n.t('gui.please_specify_output'), title=i18n.t('gui.error'))
             return
         
         # Determine the conversion options
@@ -586,10 +534,10 @@ class MangaPdfConverterGUI:
             converter = MangaPdfConverter(input_path=input_path, output_path=output_path, pagelayout=self.pagelayout_var.get(), pagemode=self.pagemode_var.get(), direction=self.direction_var.get())
 
             # Ask user if they want to convert
-            answer = messagebox.askyesno(i18n.t('gui.confirm_conversion'), i18n.t('gui.are_you_sure'), parent=self.master)
+            answer = tkface.messagebox.askyesno(master=self.master, message=i18n.t('gui.are_you_sure'), title=i18n.t('gui.confirm_conversion'))
 
             if not answer:
-                messagebox.showinfo(i18n.t('gui.conversion'), i18n.t('gui.conversion_canceled'), parent=self.master)
+                tkface.messagebox.showinfo(master=self.master, message=i18n.t('gui.conversion_canceled'), title=i18n.t('gui.conversion'))
                 return
             
             # Create "Processing..." window
@@ -635,38 +583,28 @@ class MangaPdfConverterGUI:
             self.set_timestamp(output_path)
 
             # Close process window when done
-            processing_window.grab_release()
-            processing_window.destroy()
+            if "processing_window" in locals(): processing_window.grab_release()
+            if "processing_window" in locals(): processing_window.destroy()
 
             # Re-enable main window
             #self.master.deiconify()
 
             # Check if output file was created
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                messagebox.showinfo(i18n.t('gui.success'), i18n.t('gui.conversion_complete'), parent=self.master)
+                tkface.messagebox.showinfo(master=self.master, message=i18n.t('gui.conversion_complete'), title=i18n.t('gui.success'))
             else:
-                messagebox.showerror(i18n.t('gui.error'), i18n.t('gui.conversion_failed'), parent=self.master)
+                tkface.messagebox.showerror(master=self.master, message=i18n.t('gui.conversion_failed'), title=i18n.t('gui.error'))
 
         except Exception as e:
             # Close process window when done
-            processing_window.grab_release()
-            processing_window.destroy()
-            messagebox.showerror(title=i18n.t('gui.error'), message=f"{i18n.t('gui.conversion_failed_with_error')}\n{str(e)}", parent=self.master)
+            if "processing_window" in locals(): processing_window.grab_release()
+            if "processing_window" in locals(): processing_window.destroy()
+            tkface.messagebox.showerror(title=i18n.t('gui.error'), message=f"{i18n.t('gui.conversion_failed_with_error')}\n{str(e)}", master=self.master)
 
             # Re-enable main window
             self.master.deiconify()
 
 def launch_gui():
-    if platform.system() == "Windows":
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except (ImportError, AttributeError):
-            try:
-                import ctypes
-                ctypes.windll.user32.SetProcessDPIAware()
-            except (ImportError, AttributeError):
-                pass
     root = tk.Tk()
     MangaPdfConverterGUI(root)
     root.mainloop()

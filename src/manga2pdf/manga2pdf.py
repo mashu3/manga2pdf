@@ -22,7 +22,7 @@ import concurrent.futures
 
 warnings.filterwarnings('ignore', category=UserWarning)
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 class MangaPdfConverter():   
     def __init__(self, input_path: str, output_path: str, pagelayout:str, pagemode:str, direction:str):
